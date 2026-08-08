@@ -3,36 +3,85 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>replace-this-with-the-track-name playground</title>
+    <title>Lean playground</title>
   </head>
   <body>
     <div id="editor"></div>
     <script type="module">
-            import { EditorView, basicSetup } from "codemirror";
-            import { replace-this-with-the-track-slug } from "./src/index.ts";
+      import { EditorView, basicSetup } from "codemirror";
+      import { lean } from "./src/index.ts";
 
-            const doc = `
-      # Booleans
+      // String.raw so that Lean's backslashes survive the template literal.
+      // A backtick has to come through ${…}, since it would otherwise end it.
+      const backtick = "`";
+      const doc = String.raw`
+import Std.Data.HashMap
 
-      true
-      false
+/-! A sample of every construct the grammar highlights. -/
 
-      # Integers
+namespace Playground
 
-      5
-      1000
+/-- A point in the plane, with a squared-distance helper. -/
+structure Point where
+  x : Float
+  y : Float
+  deriving Repr, BEq
 
-      # Floating-point numbers
+/- A block comment, /- which may nest, -/ back to the outer one. -/
 
-      3.2
-      1.134123
-      `
+def Point.normSq (p : Point) : Float :=
+  p.x * p.x + p.y * p.y
 
-            new EditorView({
-              doc: doc,
-              extensions: [basicSetup, replace-this-with-the-track-slug()],
-              parent: document.querySelector("#editor"),
-            });
+def scaleAll (α : Type) [Mul α] (k : α) (xs : List α) : List α :=
+  xs.map (k * ·)
+
+def masks : Array Nat := #[0xff, 0o755, 0b1010, 1_000_000]
+
+def epsilon : Float := 1.5e-3
+
+def isOrigin (p : Point) : Bool :=
+  if p.normSq < epsilon then true else false
+
+theorem two_le_four : 2 ≤ 4 := by decide
+
+theorem forall_nonneg (xs : List Nat) : ∀ x ∈ xs, 0 ≤ x := by
+  intro x _
+  omega
+
+def parity (n : Nat) : String :=
+  match n % 2 with
+  | 0 => "even"
+  | _ => "odd"
+
+def describe (p : Point) : Option String :=
+  if p == ⟨0.0, 0.0⟩ then none
+  else some s!"({p.x}, {p.y}) has normSq {p.normSq}"
+
+def main : IO Unit := do
+  let mut total := 0
+  for i in [0:10] do
+    total := total + i
+  let pt := ({ x := 3.0, y := 4.0 } : Point)
+  IO.println s!"total = {total} ({parity total}), normSq = {pt.normSq}"
+  IO.println (describe pt |>.getD r"no description")
+  let ⟨a, b⟩ := (1, 2)   -- a line comment
+  let name := ${backtick}Nat.succ
+  let ch := 'q'
+  IO.println s!"{a} {b} {name} {ch} {decide (a < b)}"
+
+def unfinished (n : Nat) : Nat :=
+  sorry
+
+end Playground
+
+#check Playground.unfinished
+`;
+
+      new EditorView({
+        doc: doc,
+        extensions: [basicSetup, lean()],
+        parent: document.querySelector("#editor"),
+      });
     </script>
   </body>
 </html>

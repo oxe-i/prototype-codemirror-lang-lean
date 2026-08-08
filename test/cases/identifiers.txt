@@ -1,0 +1,61 @@
+# Plain identifiers
+
+x
+foo
+_root_
+Nat
+
+==>
+
+Program(Identifier, Identifier, Identifier, TypeName)
+
+# Primes, bangs and question marks are identifier characters
+
+x'
+foo?
+bar!
+h₁'
+
+==>
+
+Program(Identifier, Identifier, Identifier, Identifier)
+
+# Letter-like characters
+
+α
+β₁
+Γ
+𝒜
+
+==>
+
+Program(Identifier, Identifier, Identifier, Identifier)
+
+# Lambda and the quantifiers are notation, not identifiers
+
+λ
+∀
+∃
+Σ
+
+==>
+
+Program(SymbolKeyword, SymbolKeyword, SymbolKeyword, SymbolKeyword)
+
+# Dotted names are one identifier, but a projection is not
+
+Nat.succ
+x.1
+
+==>
+
+Program(Identifier, Identifier, Operator, Number)
+
+# Escaped identifiers
+
+«a name with spaces»
+«def»
+
+==>
+
+Program(Identifier, Identifier)

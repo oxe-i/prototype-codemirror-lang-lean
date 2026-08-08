@@ -1,9 +1,9 @@
 {
-  "name": "@exercism/codemirror-lang-replace-this-with-the-track-slug",
+  "name": "@exercism/codemirror-lang-lean",
   "version": "0.0.1",
-  "description": "replace-this-with-the-track-name language support for CodeMirror",
+  "description": "Lean language support for CodeMirror",
   "scripts": {
-    "prepare": "bun run rollup -c",
+    "prepare": "bun --bun rollup -c",
     "dev": "vite"
   },
   "type": "module",

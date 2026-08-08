@@ -1,0 +1,42 @@
+# Strings
+
+""
+"Hello, World!"
+
+==>
+
+Program(String, String)
+
+# Escapes
+
+"quote: \" backslash: \\"
+"newline: \n unicode: é"
+
+==>
+
+Program(String, String)
+
+# Interpolation is part of the literal, and s! is an identifier
+
+s!"sum is {1 + 2}"
+
+==>
+
+Program(Identifier, String)
+
+# Raw strings
+
+r"a\nb"
+r#"has "quotes""#
+
+==>
+
+Program(RawString, RawString)
+
+# A brace in a string does not open a group
+
+"{x}"
+
+==>
+
+Program(String)

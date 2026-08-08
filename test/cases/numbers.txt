@@ -1,17 +1,38 @@
-# Integers
+# Decimal
 
-5
+0
 1000
+1_000_000
 
 ==>
 
-Program(IntegerLiteral, IntegerLiteral)
+Program(Number, Number, Number)
 
-# Floating-point numbers
+# Other bases
 
-3.2
-1.13412
+0xdeadBeef
+0o755
+0b1010
 
 ==>
 
-Program(FloatingPointLiteral, FloatingPointLiteral)
+Program(Number, Number, Number)
+
+# Scientific
+
+1.5
+6.022e23
+1.5E-7
+2e10
+
+==>
+
+Program(Scientific, Scientific, Scientific, Scientific)
+
+# A range is two numbers, not one scientific literal
+
+1..2
+
+==>
+
+Program(Number, Operator, Number)

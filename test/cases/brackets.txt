@@ -1,0 +1,40 @@
+# Nested delimiters
+
+( [ { ⟨ ⟩ } ] )
+
+==>
+
+Program(Parens(Brackets(Braces(Anonymous))))
+
+# Anonymous constructors
+
+⟨1, 2⟩
+
+==>
+
+Program(Anonymous(Number, Operator, Number))
+
+# Attributes and array literals
+
+@[simp]
+#[1, 2]
+
+==>
+
+Program(
+  Operator, Brackets(Keyword),
+  Operator, Brackets(Number, Operator, Number)
+)
+
+# Structure instances
+
+{ x := 1, y := 2 }
+
+==>
+
+Program(
+  Braces(
+    Identifier, Operator, Number, Operator,
+    Identifier, Operator, Number
+  )
+)

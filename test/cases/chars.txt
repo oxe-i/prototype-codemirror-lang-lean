@@ -1,0 +1,29 @@
+# Characters
+
+'a'
+'0'
+' '
+
+==>
+
+Program(Char, Char, Char)
+
+# Escaped characters
+
+'\n'
+'\''
+'\\'
+'\x41'
+'é'
+
+==>
+
+Program(Char, Char, Char, Char, Char)
+
+# A character literal holds one character, so a stray quote is an operator
+
+xs[i]'h
+
+==>
+
+Program(Identifier, Brackets(Identifier), Operator, Identifier)

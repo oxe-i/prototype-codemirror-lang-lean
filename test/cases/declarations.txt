@@ -1,0 +1,71 @@
+# Function declarations
+
+def rotate (shiftKey : UInt32) (text : String) : String :=
+  sorry
+
+==>
+
+Program(
+  Keyword, Identifier,
+  Parens(Identifier, Operator, TypeName),
+  Parens(Identifier, Operator, TypeName),
+  Operator, TypeName, Operator, Keyword
+)
+
+# Structures
+
+structure Complex where
+  re : Float
+  im : Float
+  deriving Repr
+
+==>
+
+Program(
+  Keyword, Identifier, Keyword,
+  Identifier, Operator, TypeName,
+  Identifier, Operator, TypeName,
+  Keyword, Identifier
+)
+
+# Theorems with a tactic proof
+
+theorem two_pos : 0 < 2 := by decide
+
+==>
+
+Program(
+  Keyword, Identifier, Operator, Number, Operator, Number,
+  Operator, Keyword, Keyword
+)
+
+# Unicode binders
+
+def f (α : Type) (xs : List α) : Nat := xs.length
+
+==>
+
+Program(
+  Keyword, Identifier,
+  Parens(Identifier, Operator, Sort),
+  Parens(Identifier, Operator, TypeName, Identifier),
+  Operator, TypeName, Operator, Identifier
+)
+
+# do-notation
+
+def main : IO Unit := do
+  let mut n := 0
+  for i in [0:10] do
+    n := n + i
+  IO.println s!"n = {n}"
+
+==>
+
+Program(
+  Keyword, Identifier, Operator, TypeName, TypeName, Operator, Keyword,
+  Keyword, Keyword, Identifier, Operator, Number,
+  Keyword, Identifier, Keyword, Brackets(Number, Operator, Number), Keyword,
+  Identifier, Operator, Identifier, Operator, Identifier,
+  Identifier, Identifier, String
+)

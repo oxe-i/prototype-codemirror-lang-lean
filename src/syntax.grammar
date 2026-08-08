@@ -1,30 +1,271 @@
-@top Program { expression* }
+// Lean 4 grammar for Lezer.
+//
+// This is a highlighting grammar rather than a model of Lean's syntax, which is
+// user-extensible and so cannot be pinned down by a fixed grammar at all. It
+// recognises Lean's tokens and nests them inside balanced (), [], {} and ⟨⟩
+// nodes. The `Unknown` catch-all token means no input can stop the parse, while
+// the nesting is enough for bracket matching, folding and indentation.
+//
+// The lexical rules follow the Lean 4 sources: `src/Init/Meta/Defs.lean` for
+// what may appear in an identifier, and `src/Lean/Parser/Basic.lean` for
+// comments (`whitespace`, `finishCommentBlock`), strings (`strLitFnAux`,
+// `rawStrLitFnAux`), characters (`charLitFnAux`) and numbers (`numberFnAux`).
+// The keyword list is drawn from `src/Lean/Parser/{Command,Term,Do}.lean` plus
+// the core tactics; since users can add syntax, it is a curated list, not a
+// closed one.
 
-@skip { LineComment | whitespace }
+@top Program { item* }
 
-expression {
-  literal
+@skip { whitespace | LineComment }
+
+item { Parens | Brackets | Braces | Anonymous | comment | atom }
+
+Parens { "(" item* ")" }
+Brackets { "[" item* "]" }
+Braces { "{" item* "}" }
+Anonymous { "⟨" item* "⟩" }
+
+// Lean's block comments nest — `finishCommentBlock` counts the depth — and a
+// single Lezer token is regular, so these have to be rules. They are ordinary
+// items rather than `@skip` entries because a rule in `@skip` makes the parser
+// reduce once per skipped node, which trips its guard against long chains of
+// same-position reductions and injects spurious error nodes.
+comment { BlockComment | DocComment | ModuleDoc }
+
+// A `@local tokens` group, so that inside a comment the tokenizer only looks
+// for the closer, a nested opener and raw text. A single global precedence
+// order cannot do this: ranking comment text above identifiers and whitespace
+// would break every other context, and ranking it below means whitespace wins
+// inside the comment and the parse fails at the first space.
+@local tokens {
+  commentEnd { "-/" }
+  nestedStart { "/-" }
+  @else commentContent
 }
 
-literal {
+@skip {} {
+  BlockComment { blockCommentStart commentBody }
+  DocComment { docCommentStart commentBody }
+  ModuleDoc { moduleDocStart commentBody }
+  commentBody { (commentContent | NestedComment)* commentEnd }
+  NestedComment { nestedStart commentBody }
+}
+
+atom {
+  Keyword |
+  SymbolKeyword |
+  HashCommand |
+  Sort |
+  TypeName |
   BooleanLiteral |
-  IntegerLiteral |  
-  FloatingPointLiteral
+  NameLiteral |
+  Identifier |
+  String |
+  RawString |
+  Char |
+  Scientific |
+  Number |
+  Operator |
+  Unknown
 }
+
+word<term> { @specialize<Identifier, term> }
+
+// Commands, from src/Lean/Parser/Command.lean and Module.lean.
+commandKeyword {
+  word<"abbrev"> | word<"attribute"> | word<"axiom"> | word<"builtin_initialize"> |
+  word<"class"> | word<"declare_syntax_cat"> | word<"def"> | word<"deriving"> |
+  word<"elab"> | word<"elab_rules"> | word<"end"> | word<"example"> |
+  word<"export"> | word<"extends"> | word<"import"> | word<"include"> |
+  word<"inductive"> | word<"infix"> | word<"infixl"> | word<"infixr"> |
+  word<"initialize"> | word<"instance"> | word<"local"> | word<"macro"> |
+  word<"macro_rules"> | word<"mutual"> | word<"namespace"> |
+  word<"noncomputable"> | word<"nonrec"> | word<"notation"> | word<"omit"> |
+  word<"opaque"> | word<"open"> | word<"partial"> | word<"postfix"> |
+  word<"prefix"> | word<"prelude"> | word<"private"> | word<"protected"> |
+  word<"public"> | word<"run_cmd"> | word<"scoped"> | word<"section"> |
+  word<"set_option"> | word<"structure"> | word<"syntax"> | word<"theorem"> |
+  word<"universe"> | word<"unsafe"> | word<"variable">
+}
+
+// Term and binder syntax, from src/Lean/Parser/Term.lean.
+termKeyword {
+  word<"at"> | word<"by"> | word<"calc"> | word<"decreasing_by"> |
+  word<"else"> | word<"exists"> | word<"forall"> | word<"from"> |
+  word<"fun"> | word<"generalizing"> | word<"have"> | word<"if"> |
+  word<"in"> | word<"let"> | word<"match"> | word<"nofun"> |
+  word<"nomatch"> | word<"partial_fixpoint"> | word<"rec"> | word<"show"> |
+  word<"sorry"> | word<"suffices"> | word<"termination_by"> | word<"then"> |
+  word<"this"> | word<"using"> | word<"where"> | word<"with">
+}
+
+// do-notation, from src/Lean/Parser/Do.lean. `assert!` and `dbg_trace` are the
+// spellings the parser actually registers; bare `assert` is not a keyword.
+doKeyword {
+  word<"assert!"> | word<"break"> | word<"catch"> | word<"continue"> |
+  word<"dbg_trace"> | word<"do"> | word<"finally"> | word<"for"> |
+  word<"mut"> | word<"repeat"> | word<"return"> | word<"try"> |
+  word<"unless"> | word<"until"> | word<"while">
+}
+
+// Core tactics. Lean has no closed tactic list either, so this covers the ones
+// in Init/Tactics.lean and Lean/Elab/Tactic that a reader would recognise.
+tacticKeyword {
+  word<"ac_rfl"> | word<"all_goals"> | word<"any_goals"> | word<"apply"> |
+  word<"apply?"> | word<"assumption"> | word<"assumption_mod_cast"> |
+  word<"by_cases"> | word<"by_contra"> | word<"case"> | word<"cases"> |
+  word<"change"> | word<"clear"> | word<"congr"> | word<"constructor"> |
+  word<"contradiction"> | word<"conv"> | word<"decide"> | word<"delta"> |
+  word<"done"> | word<"dsimp"> | word<"exact"> | word<"exact?"> |
+  word<"exact_mod_cast"> | word<"exfalso"> | word<"ext"> | word<"fail"> |
+  word<"first"> | word<"focus"> | word<"funext"> | word<"generalize"> |
+  word<"grind"> | word<"guard_expr"> | word<"guard_hyp"> |
+  word<"guard_target"> | word<"induction"> | word<"infer_instance"> |
+  word<"injection"> | word<"injections"> | word<"intro"> | word<"intros"> |
+  word<"iterate"> | word<"left"> | word<"native_decide"> | word<"next"> |
+  word<"norm_cast"> | word<"obtain"> | word<"omega"> | word<"push_cast"> |
+  word<"rcases"> | word<"refine"> | word<"rename_i"> | word<"replace"> |
+  word<"revert"> | word<"rfl"> | word<"right"> | word<"rintro"> |
+  word<"rotate_left"> | word<"rotate_right"> | word<"rw"> | word<"rwa"> |
+  word<"simp"> | word<"simp_all"> | word<"simp_arith"> | word<"simpa"> |
+  word<"skip"> | word<"specialize"> | word<"split"> | word<"subst"> |
+  word<"subst_vars"> | word<"symm"> | word<"trans"> | word<"trivial"> |
+  word<"unfold"> | word<"use">
+}
+
+Keyword { commandKeyword | termKeyword | doKeyword | tacticKeyword }
+
+Sort { word<"Type"> | word<"Prop"> | word<"Sort"> }
+
+TypeName {
+  word<"Array"> | word<"Bool"> | word<"Char"> | word<"Empty"> |
+  word<"Except"> | word<"Fin"> | word<"Float"> | word<"Float32"> |
+  word<"IO"> | word<"Int"> | word<"Int8"> | word<"Int16"> | word<"Int32"> |
+  word<"Int64"> | word<"List"> | word<"Nat"> | word<"Option"> |
+  word<"Prod"> | word<"String"> | word<"Subtype"> | word<"Sum"> |
+  word<"Thunk"> | word<"UInt8"> | word<"UInt16"> | word<"UInt32"> |
+  word<"UInt64"> | word<"USize"> | word<"Unit">
+}
+
+BooleanLiteral { word<"true"> | word<"false"> }
 
 @tokens {
-  whitespace { @whitespace+ }  
-  digit { @digit }
+  whitespace { @whitespace+ }
 
-  IntegerLiteral { digit+ }
+  // Declared here so that they become named nodes and can be styled.
+  // `@detectDelim` only pairs up the ASCII brackets, so ⟨ ⟩ needs the
+  // matching props spelled out or bracket matching skips it.
+  "(" ")" "[" "]" "{" "}"
+  "⟨"[closedBy="⟩"]
+  "⟩"[openedBy="⟨"]
 
-  FloatingPointLiteral { digit+ "." digit+ }
+  LineComment { "--" ![\n]* }
 
-  BooleanLiteral { "true" | "false" }
+  docCommentStart { "/--" }
+  moduleDocStart { "/-!" }
+  blockCommentStart { "/-" }
 
-  @precedence { FloatingPointLiteral, IntegerLiteral }
+  // Identifiers, per `isIdFirst`, `isIdRest`, `isLetterLike` and
+  // `isSubScriptAlnum` in src/Init/Meta/Defs.lean.
+  letterLike {
+    $[\u{3b1}-\u{3ba}] | $[\u{3bc}-\u{3c9}] |                          // lower greek, without λ
+    $[\u{391}-\u{39f}] | $[\u{3a1}-\u{3a2}] | $[\u{3a4}-\u{3a9}] |     // upper greek, without Π and Σ
+    $[\u{3ca}-\u{3fb}] |                                              // coptic
+    $[\u{1f00}-\u{1ffe}] |                                            // polytonic greek
+    $[\u{2100}-\u{214f}] |                                            // letterlike symbols
+    $[\u{1d49c}-\u{1d59f}] |                                          // script, double-struck, fraktur
+    $[\u{c0}-\u{d6}] | $[\u{d8}-\u{f6}] | $[\u{f8}-\u{ff}] |           // latin-1 supplement, without × and ÷
+    $[\u{100}-\u{17f}]                                                // latin extended-A
+  }
+  subscript {
+    $[\u{2080}-\u{2089}] | $[\u{2090}-\u{209c}] |
+    $[\u{1d62}-\u{1d6a}] | $[\u{2c7c}]
+  }
+  idFirst { $[_A-Za-z] | letterLike }
+  idRest { $[_A-Za-z0-9'!?] | letterLike | subscript }
+  // «...» is the escaped form; `isIdCont` allows a dotted continuation, so
+  // `Nat.succ` is one identifier while `x.1` is not.
+  idPart { idFirst idRest* | "«" ![»\n]* "»" }
+  Identifier { idPart ("." idPart)* }
 
-  LineComment { "//" ![\n]* }
+  NameLiteral { "`" "`"? idPart ("." idPart)* }
+  HashCommand { "#" idFirst idRest* }
+
+  // Lean permits a raw newline inside a string, as well as `\` line gaps.
+  String { '"' (!["\\] | "\\" _)* '"' }
+  // Raw strings are `r##..."..."##...` and the hash counts have to balance,
+  // which is not a regular language. The two widths that occur in practice are
+  // spelled out; wider ones fall back to an identifier followed by a string.
+  // The body is "text containing no terminator", so a run of quotes before the
+  // closing `"#` has to be allowed to end the body rather than start it.
+  RawString {
+    "r\"" !["]* '"' |
+    "r#\"" (!["] | '"'+ ![\"#])* '"'+ "#"
+  }
+  // Exactly one character or one escape, as in `charLitFnAux` — not a run. A
+  // greedy version swallows whole lines when a stray `'` appears, which it does
+  // in Lean's proof-carrying indexing (`xs[i]'h`).
+  escape {
+    "\\" ($[\\\"'rnt] | "x" hexDigit hexDigit |
+          "u" hexDigit hexDigit hexDigit hexDigit)
+  }
+  Char { "'" (!['\\\n] | escape) "'" }
+
+  decDigits { @digit (@digit | "_")* }
+  hexDigit { @digit | $[a-fA-F] }
+  exponent { $[eE] $[+\-]? decDigits }
+
+  Number {
+    "0" $[bB] $[01] ($[01] | "_")* |
+    "0" $[oO] $[0-7] ($[0-7] | "_")* |
+    "0" $[xX] hexDigit (hexDigit | "_")* |
+    decDigits
+  }
+  Scientific { decDigits "." decDigits exponent? | decDigits exponent }
+
+  // λ, ∀, ∃, Π and Σ are excluded from `isLetterLike` precisely because they
+  // are notation rather than identifier characters.
+  SymbolKeyword { "λ" | "∀" | "∃" | "Π" | "Σ" }
+
+  // Lean's operators are user-defined, so this is a character class rather than
+  // a list. Runs make `:=`, `<;>` and `<|>` single tokens for free; `,` and `;`
+  // stay separate so that `[1,-2]` does not merge into one operator.
+  opChar {
+    $[!#$%&*+\-/:<=>?@\\^`|~.'] |
+    $[\u{a1}-\u{aa}] | $[\u{ac}-\u{ba}] | $[\u{bc}-\u{bf}] |           // latin-1 symbols, without « »
+    $[\u{d7}] | $[\u{f7}] |                                           // × ÷
+    // Subscripts are included so that Lean's subscripted operators (`⊢ₛ`,
+    // `⊣⊢ₛ`) lex as one token; an identifier still wins at the start of a
+    // token, since it outranks `Operator` and a subscript cannot begin one.
+    $[\u{2000}-\u{20ff}] |                                            // general punctuation and subscripts
+    $[\u{2190}-\u{21ff}] |                                            // arrows
+    $[\u{2200}-\u{22ff}] |                                            // mathematical operators
+    $[\u{2300}-\u{23ff}] |                                            // miscellaneous technical
+    $[\u{25a0}-\u{27e7}] | $[\u{27ea}-\u{27ff}] |                      // shapes and math-A, without ⟨ ⟩
+    $[\u{2900}-\u{2aff}] |                                            // supplemental arrows and operators
+    $[\u{2b00}-\u{2bff}]
+  }
+  Operator { opChar+ | "," | ";" }
+
+  // Anything the tokens above do not cover, so that a stray or half-typed
+  // character never aborts the parse.
+  Unknown { _ }
+
+  // Lezer prefers the highest-precedence token that matches over the one that
+  // matches longest, so this is a total order over every token that can start
+  // at the same position. `Unknown` has to come last.
+  @precedence {
+    LineComment,
+    docCommentStart, moduleDocStart, blockCommentStart,
+    RawString, String, Char,
+    Scientific, Number,
+    HashCommand, NameLiteral, Identifier,
+    SymbolKeyword,
+    whitespace,
+    Operator,
+    "(", ")", "[", "]", "{", "}", "⟨", "⟩",
+    Unknown
+  }
 }
 
 @detectDelim

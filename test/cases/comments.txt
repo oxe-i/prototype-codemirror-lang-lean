@@ -1,0 +1,57 @@
+# Line comments
+
+-- a comment
+x -- a trailing comment
+
+==>
+
+Program(LineComment, Identifier, LineComment)
+
+# Block comments
+
+/- a comment -/
+
+==>
+
+Program(BlockComment)
+
+# Block comments nest
+
+/- outer /- inner -/ still outer -/
+
+==>
+
+Program(BlockComment(NestedComment))
+
+# Nesting is arbitrarily deep
+
+/- one /- two /- three -/ two -/ one -/
+
+==>
+
+Program(BlockComment(NestedComment(NestedComment)))
+
+# Doc comments
+
+/-- documents the next declaration -/
+def x := 1
+
+==>
+
+Program(DocComment, Keyword, Identifier, Operator, Number)
+
+# Module doc comments
+
+/-! documents the enclosing file -/
+
+==>
+
+Program(ModuleDoc)
+
+# A doc comment nested in a block comment
+
+/- /-- inner -/ -/
+
+==>
+
+Program(BlockComment(NestedComment))

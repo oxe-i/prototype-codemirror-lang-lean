@@ -1,0 +1,33 @@
+# Sorts
+
+Type
+Prop
+Sort
+
+==>
+
+Program(Sort, Sort, Sort)
+
+# Core types
+
+Nat Int String Bool Char Float
+UInt8 UInt32 USize
+Array List Option Except IO Unit
+
+==>
+
+Program(
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName
+)
+
+# Other capitalised names are ordinary identifiers
+
+RotationalCipher
+Complex.add
+Nat.succ
+
+==>
+
+Program(Identifier, Identifier, Identifier)

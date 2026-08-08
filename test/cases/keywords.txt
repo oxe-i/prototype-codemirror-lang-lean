@@ -1,0 +1,82 @@
+# Commands
+
+def theorem structure inductive class instance
+namespace end section open import variable
+
+==>
+
+Program(
+  Keyword, Keyword, Keyword, Keyword, Keyword, Keyword,
+  Keyword, Keyword, Keyword, Keyword, Keyword, Keyword
+)
+
+# Terms and binders
+
+fun let have show match with by calc sorry
+
+==>
+
+Program(
+  Keyword, Keyword, Keyword, Keyword, Keyword,
+  Keyword, Keyword, Keyword, Keyword
+)
+
+# do-notation
+
+do for in while return try catch mut
+
+==>
+
+Program(
+  Keyword, Keyword, Keyword, Keyword,
+  Keyword, Keyword, Keyword, Keyword
+)
+
+# Tactics
+
+simp exact rfl omega decide induction intro constructor
+
+==>
+
+Program(
+  Keyword, Keyword, Keyword, Keyword,
+  Keyword, Keyword, Keyword, Keyword
+)
+
+# Values
+
+true
+false
+
+==>
+
+Program(BooleanLiteral, BooleanLiteral)
+
+# A keyword is only a keyword on its own
+
+define
+by_the_way
+Nat.rec
+«match»
+
+==>
+
+Program(Identifier, Identifier, Identifier, Identifier)
+
+# Hash commands
+
+#eval
+#check
+
+==>
+
+Program(HashCommand, HashCommand)
+
+# assert! is the keyword; bare assert is an ordinary name
+
+assert!
+assert
+
+==>
+
+Program(Keyword, Identifier)
