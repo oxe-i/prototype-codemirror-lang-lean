@@ -25,7 +25,7 @@ Program(
   Keyword, Identifier, Keyword,
   Identifier, Operator, TypeName,
   Identifier, Operator, TypeName,
-  Keyword, Identifier
+  Keyword, TypeName
 )
 
 # Theorems with a tactic proof

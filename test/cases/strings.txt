@@ -14,7 +14,7 @@ Program(String, String)
 
 ==>
 
-Program(String, String)
+Program(String(Escape, Escape), String(Escape))
 
 # Interpolation is part of the literal, and s! is an identifier
 
