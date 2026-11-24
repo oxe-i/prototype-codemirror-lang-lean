@@ -78,6 +78,8 @@ comment { BlockComment | DocComment | ModuleDoc }
 }
 
 @external tokens interpPrefixToken from "./tokens" { InterpPrefix }
+@external tokens stdNamespaceToken from "./std-tokens" { StdNamespace }
+@external tokens stdTypeNameToken from "./std-tokens" { StdTypeName }
 
 // Deliberately single-level only (`IO.println`, not `Std.HashMap.empty`).
 // A `dottedRest`-style continuation for further segments was tried two
@@ -93,6 +95,17 @@ comment { BlockComment | DocComment | ModuleDoc }
 // token-selection decision to get wrong.
 QualifiedType { qualifiedTypeStart }
 
+// `Std.TreeSet`, `Std.TreeSet.empty`: `Std` and the curated type name each
+// get their own node (and color), while anything further (the `.empty` in
+// the second example) is left as plain Operator + Identifier. StdNamespace
+// and StdTypeName are hand-written external tokenizers (see
+// std-namespace.ts); StdTypeName is deliberately not listed anywhere else
+// in `atom`, so it's only ever a valid continuation right here, not a
+// competing candidate for e.g. plain `Nat.succ` (which stays QualifiedType,
+// unaffected). See std-namespace.ts for why this needs two tokenizers
+// instead of reusing TypeName/qualifiedTypeStart directly.
+StdQualifiedType { StdNamespace StdTypeName }
+
 atom {
   Keyword |
   SymbolKeyword |
@@ -100,6 +113,7 @@ atom {
   Sort |
   TypeName |
   QualifiedType |
+  StdQualifiedType |
   BooleanLiteral |
   NameLiteral |
   Identifier |

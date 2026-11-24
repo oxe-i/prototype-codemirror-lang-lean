@@ -17,8 +17,8 @@ export const leanLanguage = LRLanguage.define({
       styleTags({
         "Keyword SymbolKeyword": t.keyword,
         HashCommand: t.meta,
-        "Sort TypeName": t.typeName,
-        QualifiedType: t.namespace,
+        "Sort TypeName StdTypeName": t.typeName,
+        "QualifiedType StdNamespace": t.namespace,
         BooleanLiteral: t.bool,
         Identifier: t.variableName,
         NameLiteral: t.atom,
