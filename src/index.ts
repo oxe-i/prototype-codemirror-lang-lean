@@ -31,9 +31,8 @@ export const leanLanguage = LRLanguage.define({
         LineComment: t.lineComment,
         "BlockComment NestedComment": t.blockComment,
         "DocComment ModuleDoc": t.docComment,
-        Operator: t.operator,
+        "Operator [ ]": t.operator,
         "( )": t.paren,
-        "[ ]": t.squareBracket,
         "{ }": t.brace,
         "⟨ ⟩": t.bracket,
         // InterpBraces closes with the same "}" token ordinary Braces
