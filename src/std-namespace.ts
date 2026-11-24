@@ -1,5 +1,5 @@
 import { ExternalTokenizer } from "@lezer/lr";
-import { TYPE_NAMES } from "./type-names";
+import { STD_NAMESPACE_TYPES, TYPE_NAMES } from "./type-names";
 import { readBoundedSegment } from "./ident-utils";
 
 const S = "S".charCodeAt(0);
@@ -33,8 +33,22 @@ export function makeStdNamespaceTokenizer(stdNamespaceTerm: number) {
       input.peek(3) == DOT
     ) {
       const seg = readBoundedSegment(input, 4);
-      if (seg && TYPE_NAMES.has(seg)) {
+      if (!seg) return;
+      if (TYPE_NAMES.has(seg)) {
         input.acceptToken(stdNamespaceTerm, 4);
+        return;
+      }
+      // `Std.Time.PlainDateTime`: the namespace under `Std` joins the
+      // token ("Std.Time."), under the same condition as above, that a
+      // type known to live there follows. `Std.Time` on its own, as in
+      // `import Std.Time`, stays a plain Identifier like `open Std` does.
+      const nested = STD_NAMESPACE_TYPES.get(seg);
+      const afterNested = 4 + seg.length + 1;
+      if (nested && input.peek(afterNested - 1) == DOT) {
+        const type = readBoundedSegment(input, afterNested);
+        if (type && nested.has(type)) {
+          input.acceptToken(stdNamespaceTerm, afterNested);
+        }
       }
     }
   });
@@ -42,9 +56,19 @@ export function makeStdNamespaceTokenizer(stdNamespaceTerm: number) {
 
 export function makeStdTypeNameTokenizer(stdTypeNameTerm: number) {
   return new ExternalTokenizer((input) => {
+    // Only reachable right after StdNamespace, which has already checked
+    // that this segment belongs to the namespace it consumed, so a name
+    // from either list is enough here.
     const seg = readBoundedSegment(input, 0);
-    if (seg && TYPE_NAMES.has(seg)) {
+    if (seg && (TYPE_NAMES.has(seg) || isNestedStdType(seg))) {
       input.acceptToken(stdTypeNameTerm, seg.length);
     }
   });
+}
+
+function isNestedStdType(name: string): boolean {
+  for (const types of STD_NAMESPACE_TYPES.values()) {
+    if (types.has(name)) return true;
+  }
+  return false;
 }

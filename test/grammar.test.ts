@@ -74,6 +74,59 @@ describe("StdQualifiedType", () => {
     expect(nodeNames("Std.foo")).toEqual(["Program", "Identifier"]);
   });
 
+  test("takes a namespace under Std along when one of its types follows", () => {
+    const text = "Std.Time.PlainDateTime";
+    const tree = parser.parse(text);
+    const cursor = tree.cursor();
+    while (cursor.name !== "StdNamespace") {
+      if (!cursor.next()) throw new Error("StdNamespace node not found");
+    }
+    expect(text.slice(cursor.from, cursor.to)).toBe("Std.Time.");
+    while (cursor.name !== "StdTypeName") {
+      if (!cursor.next()) throw new Error("StdTypeName node not found");
+    }
+    expect(text.slice(cursor.from, cursor.to)).toBe("PlainDateTime");
+    expect(nodeNames("Std.Time.PlainDate.mk 2011 4 25")).toEqual([
+      "Program",
+      "StdQualifiedType",
+      "StdNamespace",
+      "StdTypeName",
+      "Operator",
+      "Identifier",
+      "Number",
+      "Number",
+      "Number",
+    ]);
+  });
+
+  test("leaves Std.Time alone when no known type follows", () => {
+    // The module, a name the list doesn't have, a longer name that only
+    // starts like a listed one, and a Std.Time type without its namespace.
+    for (const text of [
+      "Std.Time",
+      "Std.Time.Foo",
+      "Std.Time.PlainDateTimes",
+      "Std.PlainDate",
+      "Std.Data.HashMap",
+    ]) {
+      expect(nodeNames(text)).toEqual(["Program", "Identifier"]);
+    }
+    expect(nodeNames("import Std.Time")).toEqual([
+      "Program",
+      "Keyword",
+      "Identifier",
+    ]);
+  });
+
+  test("does not colour a bare Std.Time type name", () => {
+    expect(nodeNames("Duration Timestamp PlainDate")).toEqual([
+      "Program",
+      "Identifier",
+      "Identifier",
+      "Identifier",
+    ]);
+  });
+
   test("falls back to plain Identifier for bare Std, e.g. `open Std`", () => {
     expect(nodeNames("open Std")).toEqual(["Program", "Keyword", "Identifier"]);
   });

@@ -17,3 +17,20 @@ export const TYPE_NAMES: ReadonlySet<string> = new Set([
   "TreeMap", "TreeSet", "True", "UInt8", "UInt16", "UInt32", "UInt64",
   "ULift", "USize", "Unit", "Vector",
 ]);
+
+// Types that live in a namespace under `Std`, such as
+// `Std.Time.PlainDateTime`, keyed by that namespace. They are recognised
+// only after "Std.<namespace>." (see std-namespace.ts): a bare `Duration`
+// or `Timestamp` stays plain, because exercises define their own types
+// with names like these. The names are the date, time and duration types
+// listed in the module documentation of Lean's `Std.Time`.
+export const STD_NAMESPACE_TYPES: ReadonlyMap<string, ReadonlySet<string>> =
+  new Map([
+    [
+      "Time",
+      new Set([
+        "DateTime", "Duration", "PlainDate", "PlainDateTime", "PlainTime",
+        "TimeZone", "Timestamp", "WallTime", "Weekday", "ZonedDateTime",
+      ]),
+    ],
+  ]);
