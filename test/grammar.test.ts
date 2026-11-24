@@ -10,6 +10,7 @@ import {
   makeStdNamespaceTokenizer,
   makeStdTypeNameTokenizer,
 } from "../src/std-namespace";
+import { makeQualifiedTypeTokenizer } from "../src/qualified-type";
 
 const caseDir = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -25,6 +26,8 @@ const parser = buildParser(
         return makeStdNamespaceTokenizer(terms.StdNamespace);
       if (name === "stdTypeNameToken")
         return makeStdTypeNameTokenizer(terms.StdTypeName);
+      if (name === "qualifiedTypeToken")
+        return makeQualifiedTypeTokenizer(terms.QualifiedType);
       throw new Error(`Unknown external tokenizer: ${name}`);
     },
   }
@@ -101,8 +104,67 @@ describe("StdQualifiedType", () => {
     expect(nodeNames("StdLib.foo")).toEqual(["Program", "Identifier"]);
   });
 
-  test("does not affect the existing single-level QualifiedType feature", () => {
-    expect(nodeNames("Nat.succ")).toEqual(["Program", "QualifiedType"]);
-    expect(nodeNames("IO.println")).toEqual(["Program", "QualifiedType"]);
+  test("does not affect the existing QualifiedType feature", () => {
+    expect(nodeNames("Nat.succ")).toEqual(["Program", "QualifiedType", "Identifier"]);
+    expect(nodeNames("IO.println")).toEqual(["Program", "QualifiedType", "Identifier"]);
+  });
+});
+
+describe("QualifiedType", () => {
+  function nodeNames(text: string): string[] {
+    const tree = parser.parse(text);
+    const names: string[] = [];
+    tree.iterate({ enter: (n) => void names.push(n.type.name) });
+    return names;
+  }
+
+  test("covers only the curated type name and the dot, not the method after it", () => {
+    const text = "Nat.succ";
+    const tree = parser.parse(text);
+    const cursor = tree.cursor();
+    while (cursor.name !== "QualifiedType") {
+      if (!cursor.next()) throw new Error("QualifiedType node not found");
+    }
+    expect(text.slice(cursor.from, cursor.to)).toBe("Nat.");
+  });
+
+  test("leaves the method as a plain, unhighlighted Identifier", () => {
+    expect(nodeNames("IO.println")).toEqual(["Program", "QualifiedType", "Identifier"]);
+  });
+
+  test("fires even with nothing valid after the dot, unlike StdNamespace", () => {
+    expect(nodeNames("Nat.")).toEqual(["Program", "QualifiedType"]);
+    expect(nodeNames("IO. foo")).toEqual(["Program", "QualifiedType", "Identifier"]);
+  });
+
+  test("only ever carves off one curated-name-plus-dot prefix, not further dots", () => {
+    expect(nodeNames("Nat.Something.Else")).toEqual(["Program", "QualifiedType", "Identifier"]);
+  });
+
+  test("a dot right after a closing bracket is never mistaken for this", () => {
+    expect(nodeNames("(x).toList")).toEqual([
+      "Program",
+      "Parens",
+      "(",
+      "Identifier",
+      ")",
+      "Operator",
+      "Identifier",
+    ]);
+    expect(nodeNames("[1, 2].map")).toEqual([
+      "Program",
+      "Brackets",
+      "[",
+      "Number",
+      "Operator",
+      "Number",
+      "]",
+      "Operator",
+      "Identifier",
+    ]);
+  });
+
+  test("does not fire when the leading segment isn't curated", () => {
+    expect(nodeNames("Complex.add")).toEqual(["Program", "Identifier"]);
   });
 });

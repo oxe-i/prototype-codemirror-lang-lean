@@ -80,20 +80,31 @@ comment { BlockComment | DocComment | ModuleDoc }
 @external tokens interpPrefixToken from "./tokens" { InterpPrefix }
 @external tokens stdNamespaceToken from "./std-tokens" { StdNamespace }
 @external tokens stdTypeNameToken from "./std-tokens" { StdTypeName }
+@external tokens qualifiedTypeToken from "./qualified-type-tokens" { QualifiedType }
 
-// Deliberately single-level only (`IO.println`, not `Std.HashMap.empty`).
-// A `dottedRest`-style continuation for further segments was tried two
-// ways — a token ranked above Operator in the global @precedence table,
-// and scoped via @local tokens — and both broke real code: global
-// precedence made it win at *any* "." including after a closing
-// paren/bracket like `(expr).toList` (not a valid continuation of
-// anything, no fallback, error node); @local tokens rejected the setup
-// outright ("used together with other tokens"), apparently because
-// QualifiedType is reachable from every `atom` position, so its local
-// scope isn't isolated the way BlockComment's is. Single-level sidesteps
-// both: qualifiedTypeStart is one atomic token, so there's no further
-// token-selection decision to get wrong.
-QualifiedType { qualifiedTypeStart }
+// `IO.println`, `Nat.succ`: only the curated type name and the dot after it
+// (`IO.`, `Nat.`) get a node/color; the method after that (`println`,
+// `succ`) is left as a plain, unhighlighted Identifier — mirroring
+// StdQualifiedType below (`Std.TreeSet.empty` leaves `.empty` plain the
+// same way). QualifiedType is itself the external token (see
+// qualified-type.ts), with no wrapping rule: unlike StdQualifiedType,
+// nothing is required to follow it, so there's no dead end to guard
+// against by verifying a continuation first.
+//
+// An earlier version of this feature fused the type name, dot AND the
+// following segment into one token (`IO.println` as a single node) to
+// dodge a subtler issue: a `dottedRest`-style *further* continuation
+// (`IO.println.foo`) was tried two ways — a token ranked above Operator in
+// the global @precedence table, and scoped via @local tokens — and both
+// broke real code: global precedence made it win at *any* "." including
+// after a closing paren/bracket like `(expr).toList` (not a valid
+// continuation of anything, no fallback, error node); @local tokens
+// rejected the setup outright ("used together with other tokens"),
+// apparently because QualifiedType is reachable from every `atom`
+// position, so its local scope isn't isolated the way BlockComment's is.
+// That problem doesn't apply here: this only ever carves off exactly the
+// curated-name-plus-dot prefix, never more, so there's no further
+// token-selection decision to get wrong regardless of what follows.
 
 // `Std.TreeSet`, `Std.TreeSet.empty`: `Std` and the curated type name each
 // get their own node (and color), while anything further (the `.empty` in
@@ -102,8 +113,10 @@ QualifiedType { qualifiedTypeStart }
 // std-namespace.ts); StdTypeName is deliberately not listed anywhere else
 // in `atom`, so it's only ever a valid continuation right here, not a
 // competing candidate for e.g. plain `Nat.succ` (which stays QualifiedType,
-// unaffected). See std-namespace.ts for why this needs two tokenizers
-// instead of reusing TypeName/qualifiedTypeStart directly.
+// unaffected). Unlike QualifiedType above, StdNamespace does need to
+// verify what follows: `Std` alone (as in `open Std`) has no meaning of
+// its own, unlike a curated type name, so splitting off "Std." can't
+// happen unconditionally — see std-namespace.ts.
 StdQualifiedType { StdNamespace StdTypeName }
 
 atom {
@@ -270,33 +283,6 @@ BooleanLiteral { word<"true"> | word<"false"> }
   idPart { idFirst idRest* | "«" ![»\n]* "»" }
   Identifier { idPart ("." idPart)* }
 
-  // A curated type name used as a namespace qualifier, e.g. `IO` in
-  // `IO.println`. This list has to be kept in sync with `TypeName` below by
-  // hand — it can't reference `word<>`, since that's a grammar-level
-  // construct and this is a lexer-level token. The name, dot and first
-  // segment are baked into one token (mirroring `interpStringStart`) so
-  // that `IO.` with nothing valid after it still falls back cleanly to
-  // `TypeName "IO"` + `Operator "."` rather than a dead end: the choice is
-  // made entirely inside this token's own regex, before the parser commits
-  // to anything.
-  qualifiedTypeStart {
-    ("Add" | "And" | "Array" | "BEq" | "BitVec" | "Bool" | "ByteArray" |
-     "Char" | "Decidable" | "DecidableEq" | "DHashMap" | "Div" | "DTreeMap" |
-     "Empty" | "Eq" | "Except" | "ExceptT" | "Expr" | "ExtDHashMap" |
-     "ExtHashMap" | "ExtHashSet" | "False" | "Fin" | "Float" | "Float32" |
-     "FloatArray" | "Format" | "GE" | "GT" | "HEq" | "HashMap" | "HashSet" |
-     "Hashable" | "IO" | "Id" | "Iff" | "Inhabited" | "Int" | "Int8" |
-     "Int16" | "Int32" | "Int64" | "LE" | "LT" | "LawfulBEq" | "List" |
-     "MProd" | "Mod" | "Mul" | "Nat" | "Ne" | "Neg" | "Nonempty" | "Not" |
-     "Option" | "OptionT" | "Or" | "Ord" | "Ordering" | "PEmpty" | "PLift" |
-     "PProd" | "PSigma" | "PSum" | "PUnit" | "Pow" | "Prod" | "Quot" |
-     "Quotient" | "Range" | "ReaderM" | "ReaderT" | "Repr" | "Sigma" | "ST" |
-     "StateM" | "StateT" | "String" | "Sub" | "Subarray" | "Subtype" | "Sum" |
-     "Syntax" | "Task" | "Thunk" | "ToString" | "TreeMap" | "TreeSet" |
-     "True" | "UInt8" | "UInt16" | "UInt32" | "UInt64" | "ULift" | "USize" |
-     "Unit" | "Vector") "." idPart
-  }
-
   NameLiteral { "`" "`"? idPart ("." idPart)* }
   HashCommand { "#" idFirst idRest* }
 
@@ -381,7 +367,7 @@ BooleanLiteral { word<"true"> | word<"false"> }
     docCommentStart, moduleDocStart, blockCommentStart,
     RawString, stringStart, Char, CharEscape,
     Scientific, Number,
-    HashCommand, NameLiteral, qualifiedTypeStart, Identifier,
+    HashCommand, NameLiteral, Identifier,
     SymbolKeyword,
     whitespace,
     Operator,

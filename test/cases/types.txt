@@ -62,7 +62,7 @@ Complex.re
 
 Program(Identifier, Identifier, Identifier)
 
-# A curated type name used as a namespace qualifier
+# A curated type name qualifier: the dot+name is its own node, the method after stays plain
 
 Nat.succ
 IO.println
@@ -70,24 +70,27 @@ List.map Nat.succ
 
 ==>
 
-Program(QualifiedType, QualifiedType, QualifiedType, QualifiedType)
+Program(
+  QualifiedType, Identifier, QualifiedType, Identifier,
+  QualifiedType, Identifier, QualifiedType, Identifier
+)
 
-# Falls back gracefully when nothing valid follows the dot
+# Nothing is required to follow the dot — QualifiedType stands on its own
 
 Nat.
 IO. foo
 
 ==>
 
-Program(TypeName, Operator, TypeName, Operator, Identifier)
+Program(QualifiedType, QualifiedType, Identifier)
 
-# QualifiedType is deliberately single-level, not folding in further dots
+# QualifiedType only carves off the curated-name-plus-dot prefix, not further dots
 
 Nat.Something.Else
 
 ==>
 
-Program(QualifiedType, Operator, Identifier)
+Program(QualifiedType, Identifier)
 
 # A "." right after a closing bracket is always a plain projection
 

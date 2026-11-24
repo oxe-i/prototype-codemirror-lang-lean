@@ -52,7 +52,7 @@ false
 
 Program(BooleanLiteral, BooleanLiteral)
 
-# A keyword is only a keyword on its own
+# A keyword is only a keyword on its own — even "rec" right after Nat., since it's tokenized fresh
 
 define
 by_the_way
@@ -61,7 +61,7 @@ Nat.rec
 
 ==>
 
-Program(Identifier, Identifier, QualifiedType, Identifier)
+Program(Identifier, Identifier, QualifiedType, Keyword, Identifier)
 
 # Hash commands
 
