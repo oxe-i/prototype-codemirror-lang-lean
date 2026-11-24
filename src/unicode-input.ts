@@ -133,6 +133,8 @@ export class AbbreviationSession implements AbbreviationTextSource {
   // Replacements run one after the other: each one may dispatch, which
   // reports further changes while it is still in progress.
   private queue: Promise<void> = Promise.resolve();
+  // How many of them have not finished yet.
+  private unfinished = 0;
   private failed = false;
   private destroyed = false;
   private readonly config: ResolvedConfig;
@@ -198,8 +200,16 @@ export class AbbreviationSession implements AbbreviationTextSource {
 
   /// Replace every abbreviation being typed, finished or not. This is VS
   /// Code's `lean4.input.convert`, which it binds to Tab.
+  ///
+  /// The document is changed before this returns (unless a replacement is
+  /// still in progress), so that whatever runs next sees the symbols: the
+  /// rest of a key binding, or a host that reads the document when a button
+  /// is pressed. Only a cursor that the abbreviation places is moved later.
   convertAll(): Promise<void> {
-    return this.enqueue(() => this.rewriter.replaceAllTrackedAbbreviations());
+    return this.enqueue(
+      () => this.rewriter.replaceAllTrackedAbbreviations(),
+      true
+    );
   }
 
   destroy(): void {
@@ -207,23 +217,41 @@ export class AbbreviationSession implements AbbreviationTextSource {
     this.rewriter.resetTrackedAbbreviations();
   }
 
-  private enqueue(step: () => Promise<void>): Promise<void> {
-    return (this.queue = this.queue.then(async () => {
-      if (this.destroyed) return;
-      try {
-        await step();
-      } catch {
-        this.failed = true;
-      }
-      if (this.failed && !this.destroyed) {
-        // Whatever went wrong, typing must keep working: forget what was
-        // being tracked and start afresh at the next leader.
-        this.failed = false;
-        const wasTracking = this.rewriter.getTrackedAbbreviations().size > 0;
-        this.rewriter.resetTrackedAbbreviations();
-        if (wasTracking) this.host.dispatch({ effects: trackingChanged.of(null) });
-      }
-    }));
+  private enqueue(
+    step: () => Promise<void>,
+    immediately = false
+  ): Promise<void> {
+    const idle = this.unfinished === 0;
+    this.unfinished++;
+    const run = () => this.execute(step).then(() => void this.unfinished--);
+    if (immediately && idle) {
+      // The queue has to name this step before it starts, for anything that
+      // is enqueued while it runs.
+      let finished!: () => void;
+      const running = new Promise<void>((resolve) => (finished = resolve));
+      this.queue = running;
+      void run().then(finished);
+      return running;
+    }
+    return (this.queue = this.queue.then(run));
+  }
+
+  // Runs one step, and never rejects.
+  private async execute(step: () => Promise<void>): Promise<void> {
+    if (this.destroyed) return;
+    try {
+      await step();
+    } catch {
+      this.failed = true;
+    }
+    if (this.failed && !this.destroyed) {
+      // Whatever went wrong, typing must keep working: forget what was
+      // being tracked and start afresh at the next leader.
+      this.failed = false;
+      const wasTracking = this.rewriter.getTrackedAbbreviations().size > 0;
+      this.rewriter.resetTrackedAbbreviations();
+      if (wasTracking) this.host.dispatch({ effects: trackingChanged.of(null) });
+    }
   }
 
   // AbbreviationTextSource, the engine's view of the editor.
@@ -344,6 +372,13 @@ export const convertLeanAbbreviations: Command = (view) => {
   return true;
 };
 
+// The same, but never claims the key: what the key normally does happens
+// next, on the document with the symbols in it.
+const convertFirst: Command = (view) => {
+  convertLeanAbbreviations(view);
+  return false;
+};
+
 /// Lean's `\`-abbreviations, as an extension. `lean()` includes it.
 export function leanUnicodeInput(config: LeanUnicodeInputConfig = {}): Extension {
   // The table is the same for every editor this extension ends up in.
@@ -360,13 +395,30 @@ export function leanUnicodeInput(config: LeanUnicodeInputConfig = {}): Extension
       const session = update.view.plugin(plugin)?.session;
       if (!session) return;
       void session.afterUpdate(update.docChanged, update.selectionSet);
-      // VS Code replaces everything when the editor is switched away from.
-      if (update.focusChanged && !update.view.hasFocus) void session.convertAll();
     }),
-    // Only takes Tab while an abbreviation is being typed. Highest
-    // precedence, because the editor's own Tab binding would otherwise
-    // indent instead.
-    Prec.highest(keymap.of([{ key: "Tab", run: convertLeanAbbreviations }])),
+    // VS Code replaces everything when the editor is switched away from.
+    // Here that is when focus moves elsewhere on the page, and it is done
+    // in the event itself: pressing a button is what takes the focus away,
+    // and the button's action must find the symbols in the document.
+    // Switching to another window is not leaving the editor.
+    EditorView.domEventHandlers({
+      blur(_event, view) {
+        if (view.dom.ownerDocument.hasFocus()) convertLeanAbbreviations(view);
+        return false;
+      },
+    }),
+    Prec.highest(
+      keymap.of([
+        // Only takes Tab while an abbreviation is being typed. Highest
+        // precedence, because the editor's own Tab binding would otherwise
+        // indent instead.
+        { key: "Tab", run: convertLeanAbbreviations },
+        // A new line is indented by what is in front of it. Replace first,
+        // so that `\<` counts as the opening bracket it is about to become.
+        { key: "Enter", run: convertFirst, shift: convertFirst },
+        { key: "Mod-Enter", run: convertFirst },
+      ])
+    ),
     abbreviationTheme,
   ];
 }

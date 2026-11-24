@@ -256,6 +256,34 @@ describe("replacing as VS Code does", () => {
     expect(editor.cursors).toEqual([1]);
   });
 
+  test("on request, before the request returns", async () => {
+    // What follows a request (the rest of a key binding, a host reading
+    // the document as a button is pressed) must find the symbol there.
+    const editor = await new Editor().type("x \\to");
+    void editor.session.convertAll();
+    expect(editor.doc).toBe("x →");
+    await editor.settled();
+    expect(editor.doc).toBe("x →");
+
+    // Only the cursor an abbreviation places comes a moment later.
+    await editor.type(" \\[]");
+    expect(editor.tracked).toEqual(["\\[]"]);
+    void editor.session.convertAll();
+    expect(editor.doc).toBe("x → []");
+    await editor.settled();
+    expect(editor.cursors).toEqual([5]);
+  });
+
+  test("requests made while one is running wait their turn", async () => {
+    const editor = await new Editor().type("\\to");
+    const first = editor.session.convertAll();
+    const second = editor.session.convertAll();
+    await Promise.all([first, second]);
+    await editor.settled();
+    expect(editor.doc).toBe("→");
+    expect(editor.tracked).toEqual([]);
+  });
+
   test("at every cursor", async () => {
     const editor = new Editor("a\nb\n");
     await editor.moveTo(1, 3);
