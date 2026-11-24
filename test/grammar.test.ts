@@ -168,3 +168,104 @@ describe("QualifiedType", () => {
     expect(nodeNames("Complex.add")).toEqual(["Program", "Identifier"]);
   });
 });
+
+describe("InterpBraces", () => {
+  function nodeNames(text: string): string[] {
+    const tree = parser.parse(text);
+    const names: string[] = [];
+    tree.iterate({ enter: (n) => void names.push(n.type.name) });
+    return names;
+  }
+
+  test("splits { and } off as their own nodes around real, nested code", () => {
+    expect(nodeNames('s!"n = {n}"')).toEqual([
+      "Program",
+      "StringInterp",
+      "InterpPrefix",
+      "InterpBraces",
+      "InterpBraceStart",
+      "Identifier",
+      "}",
+    ]);
+  });
+
+  test("a nested s! string inside {...} is parsed and highlighted like any other", () => {
+    // The motivating case: a nested interpolated string, itself containing
+    // a further interpolation referencing a curated type.
+    const text = 's!"Hello, {s!"{Nat.succ 2} of us"}"';
+    expect(nodeNames(text)).toEqual([
+      "Program",
+      "StringInterp",
+      "InterpPrefix",
+      "InterpBraces",
+      "InterpBraceStart",
+      "StringInterp",
+      "InterpPrefix",
+      "InterpBraces",
+      "InterpBraceStart",
+      "QualifiedType",
+      "Identifier",
+      "Number",
+      "}",
+      "}",
+    ]);
+    // No error nodes anywhere in the tree.
+    const tree = parser.parse(text);
+    expect(tree.cursor().type.isError).toBe(false);
+    let hasError = false;
+    tree.iterate({ enter: (n) => void (hasError ||= n.type.isError) });
+    expect(hasError).toBe(false);
+  });
+
+  test("an escaped brace does not open an interpolation", () => {
+    expect(nodeNames('s!"literal: \\{ not interp"')).toEqual([
+      "Program",
+      "StringInterp",
+      "InterpPrefix",
+      "InterpEscape",
+    ]);
+  });
+
+  test("empty interpolation {} is well-formed", () => {
+    expect(nodeNames('s!"{}"')).toEqual([
+      "Program",
+      "StringInterp",
+      "InterpPrefix",
+      "InterpBraces",
+      "InterpBraceStart",
+      "}",
+    ]);
+  });
+
+  test("does not affect ordinary Braces, including right after Number/Identifier", () => {
+    expect(nodeNames("{ x := 1 }")).toEqual([
+      "Program",
+      "Braces",
+      "{",
+      "Identifier",
+      "Operator",
+      "Number",
+      "}",
+    ]);
+    expect(nodeNames("def f : Nat := { x := 1 }.x")).toEqual([
+      "Program",
+      "Keyword",
+      "Identifier",
+      "Operator",
+      "TypeName",
+      "Operator",
+      "Braces",
+      "{",
+      "Identifier",
+      "Operator",
+      "Number",
+      "}",
+      "Operator",
+      "Identifier",
+    ]);
+  });
+
+  test("a plain (non-interpolated) string with a literal brace is unaffected", () => {
+    expect(nodeNames('"a {plain} string"')).toEqual(["Program", "String"]);
+  });
+});

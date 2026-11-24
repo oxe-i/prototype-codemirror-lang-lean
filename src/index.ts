@@ -23,9 +23,9 @@ export const leanLanguage = LRLanguage.define({
         Identifier: t.variableName,
         NameLiteral: t.atom,
         "String RawString StringInterp": t.string,
-        InterpPrefix: t.meta,
+        "InterpPrefix InterpBraceStart": t.meta,
         Char: t.character,
-        "Escape CharEscape": t.escape,
+        "Escape CharEscape InterpEscape": t.escape,
         Number: t.number,
         Scientific: t.float,
         LineComment: t.lineComment,
@@ -36,6 +36,12 @@ export const leanLanguage = LRLanguage.define({
         "[ ]": t.squareBracket,
         "{ }": t.brace,
         "⟨ ⟩": t.bracket,
+        // InterpBraces closes with the same "}" token ordinary Braces
+        // does (see the grammar comment on InterpBraces for why), so this
+        // more specific, parent-scoped rule is what makes it read as part
+        // of the interpolation instead of an ordinary brace — it takes
+        // priority over the generic "{ }" rule above for this one case.
+        "InterpBraces/}": t.meta,
       }),
       indentNodeProp.add({
         Parens: delimitedIndent({ closing: ")" }),

@@ -61,6 +61,24 @@ comment { BlockComment | DocComment | ModuleDoc }
   @else stringContent
 }
 
+// A second, separate local group for StringInterp's body, distinct from
+// the one above: it needs its own `{` token (InterpBraceStart) so a `{`
+// exits string-content mode instead of being swallowed by `@else`, and
+// that can't just be added to the group above — every position that
+// group applies to would start honoring `{`, including plain (non-`s!`)
+// String, which has no InterpBraces alternative to shift into and would
+// dead-end on any literal `{` in an ordinary string. InterpBraceStart and
+// InterpEscape are capitalized (unlike stringEnd/Escape/stringContent's
+// plain-string counterparts stay) so they're their own visible nodes —
+// InterpEscape is styled the same as Escape, InterpBraceStart the same as
+// InterpPrefix, not as string content.
+@local tokens {
+  interpStringEnd { '"' }
+  InterpEscape { "\\" _ }
+  InterpBraceStart { "{" }
+  @else interpStringContent
+}
+
 @skip {} {
   String { stringStart (stringContent | Escape)* stringEnd }
   // `s!`/`f!` string interpolation. InterpPrefix is a hand-written
@@ -71,11 +89,35 @@ comment { BlockComment | DocComment | ModuleDoc }
   // no token at all and falls back to plain Identifier. stringStart
   // then covers the opening quote the same way String does, so the
   // whole span — both quotes and the content — gets one uniform style,
-  // with just the prefix styled apart. Reuses String's own local tokens
-  // (stringContent/Escape/stringEnd), so `\`-escapes inside an
-  // interpolated string still nest the same way.
-  StringInterp { InterpPrefix stringStart (stringContent | Escape)* stringEnd }
+  // with just the prefix styled apart.
+  //
+  // `{...}` interpolation blocks are parsed as real code, recursively —
+  // InterpBraces reuses `item`, the same rule everything else in the
+  // language goes through, so an interpolated expression (including a
+  // *nested* `s!"..."`) gets full, ordinary highlighting rather than
+  // being swallowed as string text. Closes with the plain "}" ordinary
+  // Braces also uses — a *second*, separately-precedenced token for the
+  // closer (mirroring InterpBraceStart) was tried first and broke
+  // ordinary `{ ... }`: token precedence is a single global order, not
+  // scoped per parser state the way local token groups are, so ranking
+  // that second token above "}" to win inside InterpBraces made it win
+  // *everywhere*, including as an ordinary Braces' closer. Reusing "}"
+  // sidesteps the ambiguity entirely; styleTags' `InterpBraces/}` path
+  // selector (see index.ts) colors it like InterpBraceStart, scoped by
+  // tree position instead.
+  StringInterp {
+    InterpPrefix stringStart
+    (interpStringContent | InterpEscape | InterpBraces)*
+    interpStringEnd
+  }
 }
+
+// Declared outside the `@skip {} { ... }` block above (unlike
+// StringInterp itself): item* needs the ordinary whitespace/comment skip
+// context real code uses everywhere else, not the verbatim, nothing-skipped
+// context string content needs — an interpolated expression like `{ x + 1 }`
+// should allow whitespace around it like any other expression would.
+InterpBraces { InterpBraceStart item* "}" }
 
 @external tokens interpPrefixToken from "./tokens" { InterpPrefix }
 @external tokens stdNamespaceToken from "./std-tokens" { StdNamespace }

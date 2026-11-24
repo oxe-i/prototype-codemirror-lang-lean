@@ -16,14 +16,17 @@ Program(String, String)
 
 Program(String(Escape, Escape), String(Escape))
 
-# s!/f! combine with an immediately-following string into StringInterp
+# s!/f! combine into StringInterp; {...} is parsed as code, brackets colored like the prefix
 
 s!"sum is {1 + 2}"
 f!"formatted {x}"
 
 ==>
 
-Program(StringInterp(InterpPrefix), StringInterp(InterpPrefix))
+Program(
+  StringInterp(InterpPrefix, InterpBraces(InterpBraceStart, Number, Operator, Number, "}")),
+  StringInterp(InterpPrefix, InterpBraces(InterpBraceStart, Identifier, "}"))
+)
 
 # Without an immediately-adjacent quote, s!/f! are just identifiers
 

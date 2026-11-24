@@ -67,5 +67,6 @@ Program(
   Keyword, Keyword, Identifier, Operator, Number,
   Keyword, Identifier, Keyword, Brackets(Number, Operator, Number), Keyword,
   Identifier, Operator, Identifier, Operator, Identifier,
-  QualifiedType, Identifier, StringInterp(InterpPrefix)
+  QualifiedType, Identifier,
+  StringInterp(InterpPrefix, InterpBraces(InterpBraceStart, Identifier, "}"))
 )
