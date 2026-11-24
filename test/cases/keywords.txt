@@ -88,3 +88,13 @@ assert
 ==>
 
 Program(Keyword, Identifier)
+
+# Mathlib's tactics are ordinary names, like its lemma
+
+by_contra
+trans
+use
+
+==>
+
+Program(Identifier, Identifier, Identifier)

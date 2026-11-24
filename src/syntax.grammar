@@ -343,10 +343,12 @@ doKeyword {
 
 // Core tactics. Lean has no closed tactic list either, so this covers the ones
 // in Init/Tactics.lean and Lean/Elab/Tactic that a reader would recognise.
+// Mathlib's tactics (`by_contra`, `trans`, `use`) are left out, like its
+// `lemma`: on Exercism they are not available, and to Lean they are names.
 tacticKeyword {
   word<"ac_rfl"> | word<"all_goals"> | word<"any_goals"> | word<"apply"> |
   word<"apply?"> | word<"assumption"> | word<"assumption_mod_cast"> |
-  word<"by_cases"> | word<"by_contra"> | word<"case"> | word<"cases"> |
+  word<"by_cases"> | word<"case"> | word<"cases"> |
   word<"change"> | word<"clear"> | word<"congr"> | word<"constructor"> |
   word<"contradiction"> | word<"conv"> | word<"decide"> | word<"delta"> |
   word<"done"> | word<"dsimp"> | word<"exact"> | word<"exact?"> |
@@ -362,8 +364,8 @@ tacticKeyword {
   word<"rotate_left"> | word<"rotate_right"> | word<"rw"> | word<"rwa"> |
   word<"simp"> | word<"simp_all"> | word<"simp_arith"> | word<"simpa"> |
   word<"skip"> | word<"specialize"> | word<"split"> | word<"subst"> |
-  word<"subst_vars"> | word<"symm"> | word<"trans"> | word<"trivial"> |
-  word<"unfold"> | word<"use">
+  word<"subst_vars"> | word<"symm"> | word<"trivial"> |
+  word<"unfold">
 }
 
 Keyword { commandKeyword | termKeyword | doKeyword | tacticKeyword }
@@ -502,8 +504,9 @@ BooleanLiteral { word<"true"> | word<"false"> }
   SymbolKeyword { "λ" | "∀" | "∃" | "Π" | "Σ" }
 
   // Lean's operators are user-defined, so this is a character class rather than
-  // a list. Runs make `:=`, `<;>` and `<|>` single tokens for free; `,` and `;`
-  // stay separate so that `[1,-2]` does not merge into one operator.
+  // a list. Runs make `:=`, `<|>` and `|>.` single tokens for free; `,` and `;`
+  // stay separate so that `[1,-2]` does not merge into one operator (which
+  // leaves `<;>` as three).
   opChar {
     $[!#$%&*+\-/:<=>?@\\^`|~.] |
     $[\u{a1}-\u{aa}] | $[\u{ac}-\u{ba}] | $[\u{bc}-\u{bf}] |           // latin-1 symbols, without « »

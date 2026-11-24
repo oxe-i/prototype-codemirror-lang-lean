@@ -133,21 +133,27 @@ The repo is structured as follows:
 ```text
 .
 ├── src
-│   ├── index.ts (the main plugin)
+│   ├── index.ts (the main plugin: language, highlighting, `lean()`)
 │   ├── syntax.grammar (the Lezer grammar)
-│   ├── syntax.grammar.d.ts (the grammar typings)
+│   ├── syntax.grammar.d.ts, syntax.grammar.terms.d.ts (the grammar typings)
+│   ├── type-names.ts (the curated type names, kept in step with the grammar)
+│   ├── ident-utils.ts (what may appear in an identifier)
+│   ├── interp-prefix.ts, std-namespace.ts, qualified-type.ts (hand-written tokenizers)
+│   ├── tokens.ts, std-tokens.ts, qualified-type-tokens.ts (what the grammar imports them through)
+│   ├── indent.ts (indentation on Enter)
 │   └── unicode-input.ts (the `\`-abbreviations)
 ├── test
 │   ├── cases (test cases)
 │   │   └ *.txt (test case)
 │   ├── grammar.test.ts (test file)
+│   ├── indent.test.ts (test file)
 │   ├── parser.ts (the parser the tests share)
 │   └── unicode-input.test.ts (test file)
 ├── tools
 │   └── parse-corpus.mjs (parses a tree of .lean files, dev only)
 ├── index.html (dev server file)
 ├── rollup.config.js (bundling config)
-├── tsconfig.json (typescript confif)
+├── tsconfig.json (typescript config)
 └── vite.config.js (vite dev server config)
 ```
 

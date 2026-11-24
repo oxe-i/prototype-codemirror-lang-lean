@@ -93,6 +93,10 @@ describe("StdQualifiedType", () => {
 
   test("falls back to plain Identifier when the segment after Std. isn't curated", () => {
     expect(nodeNames("Std.foo")).toEqual(["Program", "Identifier"]);
+    // A script letter is part of the name, although the tokenizer sees it
+    // as two UTF-16 halves: this is not `Std.TreeSet` followed by something.
+    expect(nodeNames("Std.TreeSet𝒜")).toEqual(["Program", "Identifier"]);
+    expect(nodeNames("Std.TreeSet𝒜.empty")).toEqual(["Program", "Identifier"]);
   });
 
   test("takes a namespace under Std along when one of its types follows", () => {

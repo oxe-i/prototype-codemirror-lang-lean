@@ -35,9 +35,28 @@ export function isIdRest(code: number): boolean {
 export function readBoundedSegment(input: InputStream, offset: number): string | null {
   let text = "";
   let i = offset;
-  while (isIdRest(input.peek(i))) {
-    text += String.fromCharCode(input.peek(i));
-    i++;
+  for (;;) {
+    const code = input.peek(i);
+    if (isIdRest(code)) {
+      text += String.fromCharCode(code);
+      i++;
+      continue;
+    }
+    // The stream hands out UTF-16 code units, so the script, double-struck
+    // and fraktur letters, which lie beyond U+FFFF, arrive as two halves.
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const low = input.peek(i + 1);
+      if (
+        low >= 0xdc00 &&
+        low <= 0xdfff &&
+        isIdRest(((code - 0xd800) << 10) + (low - 0xdc00) + 0x10000)
+      ) {
+        text += String.fromCharCode(code, low);
+        i += 2;
+        continue;
+      }
+    }
+    break;
   }
   return text.length > 0 ? text : null;
 }
