@@ -137,13 +137,15 @@ InterpBraces { InterpBraceStart item* "}" }
 @external tokens interpPrefixToken from "./tokens" { InterpPrefix }
 @external tokens interpKeywordToken from "./tokens" { InterpKeyword }
 @external tokens stdNamespaceToken from "./std-tokens" { StdNamespace }
-@external tokens stdTypeNameToken from "./std-tokens" { StdTypeName }
+@external tokens stdTypeNameToken from "./std-tokens" {
+  StdTypeName, stdTypeNameDot[@name=StdTypeName]
+}
 @external tokens qualifiedTypeToken from "./qualified-type-tokens" { QualifiedType }
 
 // `IO.println`, `Nat.succ`: only the curated type name and the dot after it
 // (`IO.`, `Nat.`) get a node/color; the method after that (`println`,
 // `succ`) is left as a plain, unhighlighted Identifier — mirroring
-// StdQualifiedType below (`Std.TreeSet.empty` leaves `.empty` plain the
+// StdQualifiedType below (`Std.TreeSet.empty` leaves `empty` plain the
 // same way). QualifiedType is itself the external token (see
 // qualified-type.ts), with no wrapping rule: unlike StdQualifiedType,
 // nothing is required to follow it, so there's no dead end to guard
@@ -165,8 +167,9 @@ InterpBraces { InterpBraceStart item* "}" }
 // token-selection decision to get wrong regardless of what follows.
 
 // `Std.TreeSet`, `Std.TreeSet.empty`: `Std` and the curated type name each
-// get their own node (and color), while anything further (the `.empty` in
-// the second example) is left as plain Operator + Identifier. StdNamespace
+// get their own node (and color), the type name taking a following "."
+// along as `IO.` does above (`TreeSet.` in the second example), while
+// anything further (its `empty`) is left as a plain Identifier. StdNamespace
 // and StdTypeName are hand-written external tokenizers (see
 // std-namespace.ts); StdTypeName is deliberately not listed anywhere else
 // in `atom`, so it's only ever a valid continuation right here, not a
@@ -176,6 +179,10 @@ InterpBraces { InterpBraceStart item* "}" }
 // its own, unlike a curated type name, so splitting off "Std." can't
 // happen unconditionally — see std-namespace.ts.
 StdQualifiedType { StdNamespace StdTypeName }
+// The same with the dot (`Std.TreeSet.`), as a term of its own so that a
+// declaration can tell `def Std.HashMap.foo`, where a name follows, from
+// `def Std.HashMap x`, where a parameter does.
+stdQualifiedDot[@name=StdQualifiedType] { StdNamespace stdTypeNameDot }
 
 atom {
   Keyword |
@@ -192,6 +199,7 @@ atom {
   TypeName |
   QualifiedType |
   StdQualifiedType |
+  stdQualifiedDot |
   BooleanLiteral |
   NameLiteral |
   Identifier |
@@ -203,13 +211,12 @@ atom {
   Scientific |
   Number |
   Operator |
-  nameDot |
   Unknown
 }
 
 word<term> { @specialize<Identifier, term> }
 
-@precedence { qualifiedDot, qualifiedName, definitionName, derivingInstance, attributeList }
+@precedence { qualifiedName, definitionName, derivingInstance, attributeList }
 
 // The commands that introduce a name, and the name they introduce: the
 // Lean 4 VS Code extension's grammar marks it as `entity.name.function`
@@ -222,22 +229,17 @@ word<term> { @specialize<Identifier, term> }
 // between "this identifier is the name" and "the command has no name" in
 // favour of the name; `qualifiedName` ranks above `definitionName` so that
 // the same holds after the `Nat.`, where the rule that could end instead
-// already carries the lower one, and `qualifiedDot` above that for the name
-// after `Std.HashMap.`.
+// already carries the lower one; the name after `Std.HashMap.` works the
+// same way.
 declaration {
   declarationKeyword |
   declarationKeyword !definitionName DefinitionName |
   declarationKeyword !definitionName QualifiedType |
   declarationKeyword !definitionName QualifiedType !qualifiedName DefinitionName |
   declarationKeyword !definitionName StdQualifiedType |
-  declarationKeyword !definitionName StdQualifiedType !qualifiedName nameDot |
-  declarationKeyword !definitionName StdQualifiedType !qualifiedName nameDot
-    !qualifiedDot DefinitionName
+  declarationKeyword !definitionName stdQualifiedDot |
+  declarationKeyword !definitionName stdQualifiedDot !qualifiedName DefinitionName
 }
-// The dot of `def Std.HashMap.toSortedList`, between the type and the name.
-// Specializing swaps the token wherever a lone "." stands, so `atom` takes
-// it too, under its old name.
-nameDot[@name=Operator] { @specialize<Operator, "."> }
 declarationKeyword[@name=Keyword] {
   word<"abbrev"> | word<"axiom"> | word<"class"> | word<"coinductive"> |
   word<"def"> | word<"inductive"> | instanceKeyword | word<"structure"> |

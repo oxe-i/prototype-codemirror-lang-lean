@@ -115,13 +115,25 @@ theorem Std.Time.PlainDate.foo : True := trivial
 ==>
 
 Program(
-  Keyword, StdQualifiedType(StdNamespace, StdTypeName), Operator, DefinitionName(Identifier),
+  Keyword, StdQualifiedType(StdNamespace, StdTypeName), DefinitionName(Identifier),
   Parens(Identifier, Operator, StdQualifiedType(StdNamespace, StdTypeName), TypeName, TypeName),
   Operator, Identifier,
-  Keyword, StdQualifiedType(StdNamespace, StdTypeName), Operator,
   Keyword, StdQualifiedType(StdNamespace, StdTypeName),
-  Keyword, StdQualifiedType(StdNamespace, StdTypeName), Operator, DefinitionName(Identifier),
+  Keyword, StdQualifiedType(StdNamespace, StdTypeName),
+  Keyword, StdQualifiedType(StdNamespace, StdTypeName), DefinitionName(Identifier),
   Operator, TypeName, Operator, Keyword
+)
+
+# A parameter after a Std type without a dot is not the declaration's name
+
+def Std.HashMap x := x
+def Nat.succ x := x
+
+==>
+
+Program(
+  Keyword, StdQualifiedType(StdNamespace, StdTypeName), Identifier, Operator, Identifier,
+  Keyword, QualifiedType, DefinitionName(Identifier), Identifier, Operator, Identifier
 )
 
 # A declaration keyword with no name after it

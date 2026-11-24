@@ -59,13 +59,34 @@ describe("StdQualifiedType", () => {
     expect(text.slice(cursor.from, cursor.to)).toBe("TreeSet");
   });
 
-  test("leaves a trailing method call as plain Operator + Identifier", () => {
-    expect(nodeNames("Std.TreeSet.empty")).toEqual([
+  test("takes the dot after the type along and leaves a trailing method call as a plain Identifier", () => {
+    const text = "Std.TreeSet.empty";
+    expect(nodeNames(text)).toEqual([
       "Program",
       "StdQualifiedType",
       "StdNamespace",
       "StdTypeName",
-      "Operator",
+      "Identifier",
+    ]);
+    // The same split as `IO.println`: the type keeps its dot.
+    const cursor = parser.parse(text).cursor();
+    while (cursor.name !== "StdTypeName") {
+      if (!cursor.next()) throw new Error("StdTypeName node not found");
+    }
+    expect(text.slice(cursor.from, cursor.to)).toBe("TreeSet.");
+    expect(nodeNames("IO.println")).toEqual(["Program", "QualifiedType", "Identifier"]);
+    // A dot with nothing usable after it still belongs to the type, as in `IO.`.
+    expect(nodeNames("Std.TreeSet.")).toEqual([
+      "Program",
+      "StdQualifiedType",
+      "StdNamespace",
+      "StdTypeName",
+    ]);
+    expect(nodeNames("Lean.TSyntax.raw")).toEqual([
+      "Program",
+      "StdQualifiedType",
+      "StdNamespace",
+      "StdTypeName",
       "Identifier",
     ]);
   });
@@ -91,7 +112,6 @@ describe("StdQualifiedType", () => {
       "StdQualifiedType",
       "StdNamespace",
       "StdTypeName",
-      "Operator",
       "Identifier",
       "Number",
       "Number",

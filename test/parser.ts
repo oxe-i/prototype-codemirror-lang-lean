@@ -25,7 +25,10 @@ export const parser = buildParser(
       if (name === "stdNamespaceToken")
         return makeStdNamespaceTokenizer(terms.StdNamespace);
       if (name === "stdTypeNameToken")
-        return makeStdTypeNameTokenizer(terms.StdTypeName);
+        return makeStdTypeNameTokenizer(
+          terms.StdTypeName,
+          terms.stdTypeNameDot
+        );
       if (name === "qualifiedTypeToken")
         return makeQualifiedTypeTokenizer(terms.QualifiedType);
       throw new Error(`Unknown external tokenizer: ${name}`);

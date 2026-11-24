@@ -7,8 +7,9 @@ const DOT = ".".charCodeAt(0);
 // `IO.println`, `Nat.succ` — only the curated type name and the dot after
 // it (`IO.`, `Nat.`) get their own node/color; the segment after that is
 // left alone as a plain Identifier, the same way Std.TreeSet.empty leaves
-// `.empty` plain (see std-namespace.ts, which this mirrors). Reusing
-// Identifier/TypeName for just the "IO" part doesn't work here either:
+// `empty` plain after `TreeSet.` (see std-namespace.ts, which this
+// mirrors). Reusing Identifier/TypeName for just the "IO" part doesn't
+// work here either:
 // Identifier's own regex keeps going through the dot (matching
 // "IO.println" as one run), so specialize would compare that whole run
 // against the curated list, fail, and leave it entirely unstyled — hence

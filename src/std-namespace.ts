@@ -6,8 +6,9 @@ const DOT = ".".charCodeAt(0);
 
 // `Std.<Type>`, and likewise `Lean.<Type>` (the node keeps the name
 // StdNamespace for both) — `Std` and the curated type name after it get their own
-// nodes (and colors), while anything further (`Std.TreeSet.empty`'s
-// `.empty`) is left alone as plain Operator + Identifier. Splitting the
+// nodes (and colors), the type name taking a following "." along
+// (`TreeSet.`), while anything further (`Std.TreeSet.empty`'s `empty`) is
+// left alone as a plain Identifier. Splitting the
 // literal "Std." off is easy, but the type name can't just be the
 // existing (dot-chaining) Identifier/TypeName token reused at that
 // position: Identifier's own regex would keep going through the next
@@ -21,7 +22,8 @@ const DOT = ".".charCodeAt(0);
 // with no dead end — while stdTypeNameToken, valid only as the required
 // continuation right after StdNamespace (see StdQualifiedType in the
 // grammar, not reachable from anywhere else `atom` is), matches just
-// that one bounded segment without letting a further "." extend it.
+// that one bounded segment and the "." after it, if there is one, without
+// letting what follows that dot extend it.
 // The namespaces whose types are split off this way: `Std.HashMap`, and
 // `Lean.TSyntax` or `Lean.MacroM` in a macro. Returns the length of the
 // one at the start of the input with its dot ("Std." is 4), or 0.
@@ -61,14 +63,22 @@ export function makeStdNamespaceTokenizer(stdNamespaceTerm: number) {
   });
 }
 
-export function makeStdTypeNameTokenizer(stdTypeNameTerm: number) {
+export function makeStdTypeNameTokenizer(
+  stdTypeNameTerm: number,
+  stdTypeNameDotTerm: number
+) {
   return new ExternalTokenizer((input) => {
     // Only reachable right after StdNamespace, which has already checked
     // that this segment belongs to the namespace it consumed, so a name
     // from either list is enough here.
     const seg = readBoundedSegment(input, 0);
     if (seg && (TYPE_NAMES.has(seg) || isNestedStdType(seg))) {
-      input.acceptToken(stdTypeNameTerm, seg.length);
+      // Take a following "." too, as QualifiedType does for `IO.`, so that
+      // `Std.TreeMap.empty` splits the same way `IO.println` does. With
+      // the dot it is a term of its own (under the same node name), which
+      // is what lets `def Std.HashMap.foo` find its name.
+      const dot = input.peek(seg.length) == DOT ? 1 : 0;
+      input.acceptToken(dot ? stdTypeNameDotTerm : stdTypeNameTerm, seg.length + dot);
     }
   });
 }
