@@ -9,6 +9,10 @@ import {
 } from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
 import { leanUnicodeInput } from "./unicode-input";
+import type { LeanUnicodeInputConfig } from "./unicode-input";
+
+export { leanUnicodeInput, convertLeanAbbreviations } from "./unicode-input";
+export type { LeanUnicodeInputConfig } from "./unicode-input";
 
 export const leanLanguage = LRLanguage.define({
   name: "lean",
@@ -64,6 +68,18 @@ export const leanLanguage = LRLanguage.define({
   },
 });
 
-export function lean() {
-  return new LanguageSupport(leanLanguage, [leanUnicodeInput()]);
+export interface LeanConfig {
+  /// Lean's `\`-abbreviations (`\to` → `→`), as in VS Code. On by default;
+  /// pass `false` to leave them out, or an object to configure them.
+  unicodeInput?: boolean | LeanUnicodeInputConfig;
+}
+
+export function lean(config: LeanConfig = {}) {
+  const { unicodeInput = true } = config;
+  return new LanguageSupport(
+    leanLanguage,
+    unicodeInput === false
+      ? []
+      : [leanUnicodeInput(unicodeInput === true ? {} : unicodeInput)]
+  );
 }

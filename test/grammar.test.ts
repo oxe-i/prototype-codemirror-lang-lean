@@ -1,36 +1,14 @@
-import { buildParser } from "@lezer/generator";
 import { fileTests } from "@lezer/generator/dist/test";
 
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, test } from "bun:test";
-import { makeInterpPrefixTokenizer } from "../src/interp-prefix";
-import {
-  makeStdNamespaceTokenizer,
-  makeStdTypeNameTokenizer,
-} from "../src/std-namespace";
-import { makeQualifiedTypeTokenizer } from "../src/qualified-type";
+import { parser } from "./parser";
 
 const caseDir = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "cases"
-);
-const parser = buildParser(
-  fs.readFileSync(path.join("src", "syntax.grammar"), "utf8"),
-  {
-    externalTokenizer(name, terms) {
-      if (name === "interpPrefixToken")
-        return makeInterpPrefixTokenizer(terms.InterpPrefix);
-      if (name === "stdNamespaceToken")
-        return makeStdNamespaceTokenizer(terms.StdNamespace);
-      if (name === "stdTypeNameToken")
-        return makeStdTypeNameTokenizer(terms.StdTypeName);
-      if (name === "qualifiedTypeToken")
-        return makeQualifiedTypeTokenizer(terms.QualifiedType);
-      throw new Error(`Unknown external tokenizer: ${name}`);
-    },
-  }
 );
 
 for (const file of fs.readdirSync(caseDir)) {
