@@ -10,12 +10,11 @@ import type { SyntaxNode } from "@lezer/common";
 // moment it's typed, mirroring Lean's own "expand as soon as it's
 // unambiguous" behaviour, without needing to track partial ambiguity
 // across a large table.
-// Some otherwise-natural entries are left out because they'd break
-// prefix-freeness against one already here: `\infty` (⇒ conflicts with
-// `\in`) and `\notin` (⇒ conflicts with `\not`) both start with a shorter
-// existing key. Adding either back would require tracking ambiguity across
-// entries (as Lean's own input method does), which this table deliberately
-// avoids — see the module comment above.
+// `\infty` is left out entirely — it would conflict with `\in` (a shorter
+// existing key can't be a prefix of another). `\notin` has the same problem
+// against `\not`, but real Lean's own table also ships `\nin` as a
+// non-conflicting alternate spelling for the same symbol, so that's used
+// below instead of dropping the symbol altogether.
 export const abbreviations: Readonly<Record<string, string>> = {
   // Logic and relations
   "\\and": "∧",
@@ -27,6 +26,8 @@ export const abbreviations: Readonly<Record<string, string>> = {
   "\\exists": "∃",
   "\\vdash": "⊢",
   "\\mapsto": "↦",
+  "\\larrow": "←",
+  "\\uparrow": "↑",
   "\\le": "≤",
   "\\ge": "≥",
   "\\ne": "≠",
@@ -34,19 +35,27 @@ export const abbreviations: Readonly<Record<string, string>> = {
 
   // Sets
   "\\in": "∈",
+  "\\nin": "∉",
   "\\subseteq": "⊆",
   "\\supseteq": "⊇",
+  "\\nsubseteq": "⊈",
   "\\cup": "∪",
   "\\cap": "∩",
   "\\bigcup": "⋃",
   "\\bigcap": "⋂",
   "\\empty": "∅",
 
+  // Anonymous-constructor brackets — by far the most common symbol across
+  // exercism/lean's exercises (⟨⟩-notation for tuples/structures).
+  "\\<": "⟨",
+  "\\>": "⟩",
+
   // Operators and misc
   "\\lambda": "λ",
   "\\times": "×",
   "\\circ": "∘",
   "\\cdot": "⋅",
+  "\\.": "·",
   "\\partial": "∂",
   "\\nabla": "∇",
 
@@ -62,6 +71,7 @@ export const abbreviations: Readonly<Record<string, string>> = {
   "\\sigma": "σ",
   "\\phi": "φ",
   "\\omega": "ω",
+  "\\Omega": "Ω",
   "\\sum": "Σ",
 
   // Number systems
@@ -70,9 +80,26 @@ export const abbreviations: Readonly<Record<string, string>> = {
   "\\Z": "ℤ",
   "\\Q": "ℚ",
   "\\C": "ℂ",
+
+  // Subscript digits, chainable one at a time (`\1\2` → "₁₂") the same way
+  // Lean's own input method handles multi-digit subscripts.
+  "\\0": "₀",
+  "\\1": "₁",
+  "\\2": "₂",
+  "\\3": "₃",
+  "\\4": "₄",
+  "\\5": "₅",
+  "\\6": "₆",
+  "\\7": "₇",
+  "\\8": "₈",
+  "\\9": "₉",
 };
 
-const trigger = /\\[A-Za-z]+$/;
+// Letter sequences (`\to`, `\alpha`, ...) fire once the whole word is
+// unambiguous; the bracket/dot/digit shortcuts above are exactly one
+// character after the backslash, since none of them extend into a longer
+// word the way the letter ones can.
+const trigger = /\\(?:[A-Za-z]+|[0-9<>.])$/;
 
 // Given the text immediately before the cursor, including the character
 // that was just typed, return the replacement to make if it completes a

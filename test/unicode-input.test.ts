@@ -58,4 +58,30 @@ describe("matchAbbreviation", () => {
     expect(matchAbbreviation("\\in")).toEqual({ matchLength: 3, symbol: "∈" });
     expect(matchAbbreviation("\\inf")).toBeNull();
   });
+
+  test("\\notin is left out, but \\nin covers the same symbol without conflicting with \\not", () => {
+    expect(matchAbbreviation("\\not")).toEqual({ matchLength: 4, symbol: "¬" });
+    expect(matchAbbreviation("\\notin")).toBeNull();
+    expect(matchAbbreviation("\\nin")).toEqual({ matchLength: 4, symbol: "∉" });
+  });
+
+  test("matches the anonymous-constructor brackets, the most common symbol in exercism/lean", () => {
+    expect(matchAbbreviation("\\<")).toEqual({ matchLength: 2, symbol: "⟨" });
+    expect(matchAbbreviation("\\>")).toEqual({ matchLength: 2, symbol: "⟩" });
+  });
+
+  test("matches a single subscript digit, chainable for multi-digit subscripts", () => {
+    expect(matchAbbreviation("v\\1")).toEqual({ matchLength: 2, symbol: "₁" });
+    // A second escape right after the first's expansion (no backslash left
+    // in the buffer) simply doesn't match — this is exercised end-to-end,
+    // not here, since it depends on the expansion actually happening.
+    expect(matchAbbreviation("v₁\\2")).toEqual({ matchLength: 2, symbol: "₂" });
+  });
+
+  test("matches the middle-dot placeholder syntax", () => {
+    expect(matchAbbreviation("List.foldl (\\.")).toEqual({
+      matchLength: 2,
+      symbol: "·",
+    });
+  });
 });
