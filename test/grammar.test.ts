@@ -106,7 +106,8 @@ describe("StdQualifiedType", () => {
       "Std.Time",
       "Std.Time.Foo",
       "Std.Time.PlainDateTimes",
-      "Std.PlainDate",
+      "Std.Duration",
+      "Lean.Time.PlainDate",
       "Std.Data.HashMap",
     ]) {
       expect(nodeNames(text)).toEqual(["Program", "Identifier"]);
@@ -119,12 +120,35 @@ describe("StdQualifiedType", () => {
   });
 
   test("does not colour a bare Std.Time type name", () => {
-    expect(nodeNames("Duration Timestamp PlainDate")).toEqual([
+    expect(nodeNames("Duration Timestamp WallTime")).toEqual([
       "Program",
       "Identifier",
       "Identifier",
       "Identifier",
     ]);
+  });
+
+  test("splits Lean and a curated type the same way", () => {
+    const text = "Lean.TSyntax";
+    const tree = parser.parse(text);
+    const cursor = tree.cursor();
+    while (cursor.name !== "StdNamespace") {
+      if (!cursor.next()) throw new Error("StdNamespace node not found");
+    }
+    expect(text.slice(cursor.from, cursor.to)).toBe("Lean.");
+    expect(nodeNames("Lean.MacroM Lean.Syntax")).toEqual([
+      "Program",
+      "StdQualifiedType",
+      "StdNamespace",
+      "StdTypeName",
+      "StdQualifiedType",
+      "StdNamespace",
+      "StdTypeName",
+    ]);
+    // Not in the list, a longer word, and the bare namespace.
+    for (const text of ["Lean.Name", "Leans.Syntax", "Lean", "Lean.Elab.Command"]) {
+      expect(nodeNames(text)).toEqual(["Program", "Identifier"]);
+    }
   });
 
   test("falls back to plain Identifier for bare Std, e.g. `open Std`", () => {

@@ -361,30 +361,34 @@ Sort { word<"Type"> | word<"Prop"> | word<"Sort"> }
 // curated to the ones a reader would actually see spelled out in source
 // (`[DecidableEq α]`, `deriving Repr`, `: Ordering`), not every internal
 // typeclass (the heterogeneous `H*` operator classes are left out as rarely
-// written literally).
+// written literally, `HAppend` being the exception) — plus the types of
+// `Std.Time`, `Lean`'s macro types and `Ref`/`Mutex`, which the Exercism
+// track's exercises use.
 TypeName {
   word<"Add"> | word<"And"> | word<"Array"> | word<"BEq"> | word<"BitVec"> |
   word<"Bool"> | word<"ByteArray"> | word<"Char"> | word<"Decidable"> |
-  word<"DecidableEq"> | word<"DHashMap"> | word<"Div"> | word<"DTreeMap"> |
-  word<"Empty"> | word<"Eq"> | word<"Except"> | word<"ExceptT"> |
-  word<"Expr"> | word<"ExtDHashMap"> | word<"ExtHashMap"> |
-  word<"ExtHashSet"> | word<"False"> | word<"Fin"> | word<"Float"> |
-  word<"Float32"> | word<"FloatArray"> | word<"Format"> | word<"GE"> |
-  word<"GT"> | word<"HEq"> | word<"HashMap"> | word<"HashSet"> |
-  word<"Hashable"> | word<"IO"> | word<"Id"> | word<"Iff"> |
+  word<"DecidableEq"> | word<"DecidableRel"> | word<"DHashMap"> |
+  word<"Div"> | word<"DTreeMap"> | word<"Empty"> | word<"Eq"> |
+  word<"Except"> | word<"ExceptT"> | word<"Expr"> | word<"ExtDHashMap"> |
+  word<"ExtHashMap"> | word<"ExtHashSet"> | word<"False"> | word<"Fin"> |
+  word<"Float"> | word<"Float32"> | word<"FloatArray"> | word<"Format"> |
+  word<"GE"> | word<"GT"> | word<"HAppend"> | word<"HEq"> | word<"HashMap"> |
+  word<"HashSet"> | word<"Hashable"> | word<"IO"> | word<"Id"> | word<"Iff"> |
   word<"Inhabited"> | word<"Int"> | word<"Int8"> | word<"Int16"> |
   word<"Int32"> | word<"Int64"> | word<"LE"> | word<"LT"> |
-  word<"LawfulBEq"> | word<"List"> | word<"MProd"> | word<"Mod"> |
-  word<"Mul"> | word<"Nat"> | word<"Ne"> | word<"Neg"> | word<"Nonempty"> |
-  word<"Not"> | word<"Option"> | word<"OptionT"> | word<"Or"> | word<"Ord"> |
-  word<"Ordering"> | word<"PEmpty"> | word<"PLift"> | word<"PProd"> |
-  word<"PSigma"> | word<"PSum"> | word<"PUnit"> | word<"Pow"> | word<"Prod"> |
-  word<"Quot"> | word<"Quotient"> | word<"Range"> | word<"ReaderM"> |
-  word<"ReaderT"> | word<"Repr"> | word<"Sigma"> | word<"ST"> |
-  word<"StateM"> | word<"StateT"> | word<"String"> | word<"Sub"> |
-  word<"Subarray"> | word<"Subtype"> | word<"Sum"> | word<"Syntax"> |
-  word<"Task"> | word<"Thunk"> | word<"ToString"> | word<"TreeMap"> |
-  word<"TreeSet"> | word<"True"> | word<"UInt8"> | word<"UInt16"> |
+  word<"LawfulBEq"> | word<"List"> | word<"MacroM"> | word<"MProd"> |
+  word<"Mod"> | word<"Mul"> | word<"Mutex"> | word<"Nat"> | word<"Ne"> |
+  word<"Neg"> | word<"Nonempty"> | word<"Not"> | word<"Option"> |
+  word<"OptionT"> | word<"Or"> | word<"Ord"> | word<"Ordering"> |
+  word<"PEmpty"> | word<"PlainDate"> | word<"PlainDateTime"> |
+  word<"PlainTime"> | word<"PLift"> | word<"PProd"> | word<"PSigma"> |
+  word<"PSum"> | word<"PUnit"> | word<"Pow"> | word<"Prod"> | word<"Quot"> |
+  word<"Quotient"> | word<"Range"> | word<"ReaderM"> | word<"ReaderT"> |
+  word<"Ref"> | word<"Repr"> | word<"Sigma"> | word<"ST"> | word<"StateM"> |
+  word<"StateT"> | word<"String"> | word<"Sub"> | word<"Subarray"> |
+  word<"Subtype"> | word<"Sum"> | word<"Syntax"> | word<"Task"> |
+  word<"Thunk"> | word<"ToString"> | word<"TreeMap"> | word<"TreeSet"> |
+  word<"True"> | word<"TSyntax"> | word<"UInt8"> | word<"UInt16"> |
   word<"UInt32"> | word<"UInt64"> | word<"ULift"> | word<"USize"> |
   word<"Unit"> | word<"Vector">
 }

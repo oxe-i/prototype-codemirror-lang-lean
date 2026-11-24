@@ -103,3 +103,23 @@ Program(
   Parens(Identifier), Operator, Identifier,
   Brackets(Number, Operator, Number), Operator, Identifier
 )
+
+# Types the Exercism track's exercises use
+
+DecidableRel HAppend TSyntax MacroM Mutex
+PlainDate PlainTime PlainDateTime
+IO.Ref Nat
+ST.Ref σ Nat
+Std.Mutex Nat
+PlainDate.mk
+
+==>
+
+Program(
+  TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName,
+  QualifiedType, TypeName, TypeName,
+  QualifiedType, TypeName, Identifier, TypeName,
+  StdQualifiedType(StdNamespace, StdTypeName), TypeName,
+  QualifiedType, Identifier
+)

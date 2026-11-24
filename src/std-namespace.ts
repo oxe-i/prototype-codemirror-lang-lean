@@ -1,13 +1,11 @@
-import { ExternalTokenizer } from "@lezer/lr";
+import { ExternalTokenizer, InputStream } from "@lezer/lr";
 import { STD_NAMESPACE_TYPES, TYPE_NAMES } from "./type-names";
 import { readBoundedSegment } from "./ident-utils";
 
-const S = "S".charCodeAt(0);
-const T = "t".charCodeAt(0);
-const D = "d".charCodeAt(0);
 const DOT = ".".charCodeAt(0);
 
-// `Std.<Type>` — `Std` and the curated type name after it get their own
+// `Std.<Type>`, and likewise `Lean.<Type>` (the node keeps the name
+// StdNamespace for both) — `Std` and the curated type name after it get their own
 // nodes (and colors), while anything further (`Std.TreeSet.empty`'s
 // `.empty`) is left alone as plain Operator + Identifier. Splitting the
 // literal "Std." off is easy, but the type name can't just be the
@@ -24,31 +22,40 @@ const DOT = ".".charCodeAt(0);
 // continuation right after StdNamespace (see StdQualifiedType in the
 // grammar, not reachable from anywhere else `atom` is), matches just
 // that one bounded segment without letting a further "." extend it.
+// The namespaces whose types are split off this way: `Std.HashMap`, and
+// `Lean.TSyntax` or `Lean.MacroM` in a macro. Returns the length of the
+// one at the start of the input with its dot ("Std." is 4), or 0.
+const ROOT_NAMESPACES = ["Std", "Lean"];
+
+function rootNamespaceLength(input: InputStream): number {
+  for (const root of ROOT_NAMESPACES) {
+    let i = 0;
+    while (i < root.length && input.peek(i) == root.charCodeAt(i)) i++;
+    if (i == root.length && input.peek(i) == DOT) return i + 1;
+  }
+  return 0;
+}
+
 export function makeStdNamespaceTokenizer(stdNamespaceTerm: number) {
   return new ExternalTokenizer((input) => {
-    if (
-      input.next == S &&
-      input.peek(1) == T &&
-      input.peek(2) == D &&
-      input.peek(3) == DOT
-    ) {
-      const seg = readBoundedSegment(input, 4);
-      if (!seg) return;
-      if (TYPE_NAMES.has(seg)) {
-        input.acceptToken(stdNamespaceTerm, 4);
-        return;
-      }
-      // `Std.Time.PlainDateTime`: the namespace under `Std` joins the
-      // token ("Std.Time."), under the same condition as above, that a
-      // type known to live there follows. `Std.Time` on its own, as in
-      // `import Std.Time`, stays a plain Identifier like `open Std` does.
-      const nested = STD_NAMESPACE_TYPES.get(seg);
-      const afterNested = 4 + seg.length + 1;
-      if (nested && input.peek(afterNested - 1) == DOT) {
-        const type = readBoundedSegment(input, afterNested);
-        if (type && nested.has(type)) {
-          input.acceptToken(stdNamespaceTerm, afterNested);
-        }
+    const root = rootNamespaceLength(input);
+    if (!root) return;
+    const seg = readBoundedSegment(input, root);
+    if (!seg) return;
+    if (TYPE_NAMES.has(seg)) {
+      input.acceptToken(stdNamespaceTerm, root);
+      return;
+    }
+    // `Std.Time.PlainDateTime`: the namespace under `Std` joins the
+    // token ("Std.Time."), under the same condition as above, that a
+    // type known to live there follows. `Std.Time` on its own, as in
+    // `import Std.Time`, stays a plain Identifier like `open Std` does.
+    const nested = root == 4 ? STD_NAMESPACE_TYPES.get(seg) : undefined;
+    const afterNested = root + seg.length + 1;
+    if (nested && input.peek(afterNested - 1) == DOT) {
+      const type = readBoundedSegment(input, afterNested);
+      if (type && nested.has(type)) {
+        input.acceptToken(stdNamespaceTerm, afterNested);
       }
     }
   });
