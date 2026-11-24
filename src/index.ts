@@ -19,8 +19,14 @@ export const leanLanguage = LRLanguage.define({
         HashCommand: t.meta,
         "Sort TypeName": t.typeName,
         QualifiedType: t.namespace,
-        TypeDecl: t.definition(t.typeName),
-        NamespaceDecl: t.definition(t.namespace),
+        // Not t.definition(t.typeName)/t.definition(t.namespace): since the
+        // keyword and the declared name are one token (see the grammar
+        // comment on TypeDecl/NamespaceDecl), that would make the whole
+        // span read as "a type/namespace reference", indistinguishable in
+        // hue from TypeName/QualifiedType elsewhere. t.definition(t.variableName)
+        // keeps it a properly distinct color — this is a name being
+        // defined, not a type being referenced.
+        "TypeDecl NamespaceDecl": t.definition(t.variableName),
         BooleanLiteral: t.bool,
         Identifier: t.variableName,
         NameLiteral: t.atom,
