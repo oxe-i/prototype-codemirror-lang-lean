@@ -12,14 +12,22 @@ Program(
 
 # Terms and binders
 
-fun let have show match with by calc sorry
+fun let have show match with by calc
 
 ==>
 
 Program(
   Keyword, Keyword, Keyword, Keyword, Keyword,
-  Keyword, Keyword, Keyword, Keyword
+  Keyword, Keyword, Keyword
 )
+
+# What marks code as unfinished is not an ordinary keyword
+
+sorry admit #exit sorry' Foo.sorry #exits
+
+==>
+
+Program(Incomplete, Incomplete, Incomplete, Identifier, Identifier, HashCommand)
 
 # do-notation
 

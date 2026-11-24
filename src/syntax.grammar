@@ -163,6 +163,7 @@ StdQualifiedType { StdNamespace StdTypeName }
 
 atom {
   Keyword |
+  Incomplete |
   SymbolKeyword |
   HashCommand |
   Sort |
@@ -184,6 +185,13 @@ atom {
 }
 
 word<term> { @specialize<Identifier, term> }
+
+// What marks code as unfinished. The Lean 4 VS Code extension flags the same
+// three (`invalid.illegal` in its grammar), and `sorry` is the placeholder
+// that Exercism's stubs ask the student to replace.
+Incomplete {
+  word<"sorry"> | word<"admit"> | @specialize<HashCommand, "#exit">
+}
 
 // Commands, from src/Lean/Parser/Command.lean and Module.lean.
 commandKeyword {
@@ -209,7 +217,7 @@ termKeyword {
   word<"fun"> | word<"generalizing"> | word<"have"> | word<"if"> |
   word<"in"> | word<"let"> | word<"match"> | word<"nofun"> |
   word<"nomatch"> | word<"partial_fixpoint"> | word<"rec"> | word<"show"> |
-  word<"sorry"> | word<"suffices"> | word<"termination_by"> | word<"then"> |
+  word<"suffices"> | word<"termination_by"> | word<"then"> |
   word<"this"> | word<"using"> | word<"where"> | word<"with">
 }
 

@@ -20,6 +20,7 @@ export const leanLanguage = LRLanguage.define({
     props: [
       styleTags({
         "Keyword SymbolKeyword": t.keyword,
+        Incomplete: t.invalid,
         HashCommand: t.meta,
         "Sort TypeName StdTypeName": t.typeName,
         "QualifiedType StdNamespace": t.namespace,

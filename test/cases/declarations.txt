@@ -9,7 +9,7 @@ Program(
   Keyword, Identifier,
   Parens(Identifier, Operator, TypeName),
   Parens(Identifier, Operator, TypeName),
-  Operator, TypeName, Operator, Keyword
+  Operator, TypeName, Operator, Incomplete
 )
 
 # Structures
