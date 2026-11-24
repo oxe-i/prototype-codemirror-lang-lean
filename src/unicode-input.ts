@@ -6,6 +6,7 @@ import {
   Prec,
   StateEffect,
   TransactionSpec,
+  findClusterBreak,
 } from "@codemirror/state";
 import {
   Command,
@@ -14,6 +15,7 @@ import {
   EditorView,
   ViewPlugin,
   ViewUpdate,
+  hoverTooltip,
   keymap,
 } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
@@ -67,6 +69,9 @@ export interface LeanUnicodeInputConfig {
   /// default here is false, so that escapes can be typed normally; the code
   /// inside an `s!"…{…}…"` interpolation is not affected either way.
   inStringLiterals?: boolean;
+  /// Show how a symbol is typed when the pointer rests on it ("Type ⊓ using
+  /// `\glb` or `\sqcap`"), as VS Code does. Defaults to true.
+  hover?: boolean;
 }
 
 type ResolvedConfig = AbbreviationConfig & { inStringLiterals: boolean };
@@ -333,7 +338,82 @@ const trackedMark = Decoration.mark({ class: "cm-lean-abbreviation" });
 
 const abbreviationTheme = EditorView.baseTheme({
   ".cm-lean-abbreviation": { textDecoration: "underline" },
+  ".cm-lean-abbreviation-hint": { padding: "3px 8px" },
+  ".cm-lean-abbreviation-hint code": { fontFamily: "monospace" },
 });
+
+/// How the symbol at a position is typed.
+export interface AbbreviationHint {
+  from: number;
+  to: number;
+  symbol: string;
+  /// Every abbreviation that gives the symbol, with the leader.
+  abbreviations: string[];
+  /// Abbreviations that give the symbol together with its closing partner,
+  /// such as `\<>` for `⟨⟩`.
+  pairs: { abbreviation: string; closing: string }[];
+}
+
+/// The hint for the symbol that starts at `pos`, if the table has one. This
+/// is what the VS Code extension shows on hover, from the same table.
+///
+/// Characters every keyboard has give no hint (the table has `\\` for `\`),
+/// and neither does a symbol in a string or character literal, unless
+/// abbreviations work there.
+export function abbreviationHintAt(
+  state: EditorState,
+  pos: number,
+  config: LeanUnicodeInputConfig = {},
+  provider = new AbbreviationProvider(resolveConfig(config))
+): AbbreviationHint | null {
+  const line = state.doc.lineAt(pos);
+  const leader = provider.config.abbreviationCharacter;
+  const symbols = provider.findSymbolsIn(line.text.slice(pos - line.from));
+  for (const symbol of symbols) {
+    if (!/[^\x00-\x7f]/.test(symbol)) continue;
+    const abbreviations = provider.collectAllAbbreviations(symbol);
+    if (abbreviations.length === 0) continue;
+    if (!config.inStringLiterals && insideStringLiteral(state, pos))
+      return null;
+    return {
+      from: pos,
+      to: pos + symbol.length,
+      symbol,
+      abbreviations: abbreviations.map((abbreviation) => leader + abbreviation),
+      pairs: provider
+        .findAutoClosingAbbreviations(symbol)
+        .map(([abbreviation, closing]) => ({
+          abbreviation: leader + abbreviation,
+          closing,
+        })),
+    };
+  }
+  return null;
+}
+
+// "Type ⟨ using \< or \langle. ⟨ can be auto-closed with ⟩ using \<>."
+function renderHint(hint: AbbreviationHint): HTMLElement {
+  const dom = document.createElement("div");
+  dom.className = "cm-lean-abbreviation-hint";
+  const code = (text: string) => {
+    dom.appendChild(document.createElement("code")).textContent = text;
+  };
+  dom.append(`Type ${hint.symbol} using `);
+  hint.abbreviations.forEach((abbreviation, index) => {
+    if (index > 0) dom.append(" or ");
+    code(abbreviation);
+  });
+  if (hint.pairs.length > 0) {
+    dom.append(`. ${hint.symbol} can be auto-closed with `);
+    hint.pairs.forEach(({ abbreviation, closing }, index) => {
+      if (index > 0) dom.append(" or ");
+      dom.append(`${closing} using `);
+      code(abbreviation);
+    });
+    dom.append(".");
+  }
+  return dom;
+}
 
 class AbbreviationPlugin {
   readonly session: AbbreviationSession;
@@ -421,6 +501,26 @@ export function leanUnicodeInput(config: LeanUnicodeInputConfig = {}): Extension
         { key: "Mod-Enter", run: convertFirst },
       ])
     ),
+    config.hover === false
+      ? []
+      : hoverTooltip((view, pos, side) => {
+          // `pos` is the position nearest the pointer. The character under
+          // the pointer starts there, or ends there when the pointer is to
+          // its left.
+          const line = view.state.doc.lineAt(pos);
+          const start =
+            side < 0
+              ? line.from + findClusterBreak(line.text, pos - line.from, false)
+              : pos;
+          const hint = abbreviationHintAt(view.state, start, config, provider);
+          if (!hint) return null;
+          return {
+            pos: hint.from,
+            end: hint.to,
+            above: true,
+            create: () => ({ dom: renderHint(hint) }),
+          };
+        }),
     abbreviationTheme,
   ];
 }

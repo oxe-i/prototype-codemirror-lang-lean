@@ -13,6 +13,7 @@ import {
   AbbreviationHost,
   AbbreviationSession,
   LeanUnicodeInputConfig,
+  abbreviationHintAt,
 } from "../src/unicode-input";
 import { parser } from "./parser";
 
@@ -440,5 +441,65 @@ describe("as a guest in someone else's editor", () => {
     expect(editor.tracked).toEqual([]);
     await editor.type("y");
     expect(editor.doc).toBe("x \\to y");
+  });
+});
+
+describe("the hint for a symbol", () => {
+  const hintAt = (doc: string, pos: number, config?: LeanUnicodeInputConfig) =>
+    abbreviationHintAt(
+      EditorState.create({ doc, extensions: [leanForTests] }),
+      pos,
+      config
+    );
+
+  test("lists every abbreviation that gives it", () => {
+    expect(hintAt("a ⊓ b", 2)).toEqual({
+      from: 2,
+      to: 3,
+      symbol: "⊓",
+      abbreviations: ["\\inf", "\\meet", "\\glb", "\\sqcap"],
+      pairs: [],
+    });
+    expect(hintAt("theorem t : ∀ x, x ≤ x", 12)?.abbreviations).toEqual([
+      "\\all",
+      "\\forall",
+    ]);
+  });
+
+  test("names the abbreviation that also closes a bracket", () => {
+    const hint = hintAt("⟨a, b⟩", 0);
+    expect(hint?.abbreviations).toEqual(["\\<", "\\langle"]);
+    expect(hint?.pairs).toEqual([{ abbreviation: "\\<>", closing: "⟩" }]);
+  });
+
+  test("is there for every symbol the Lean track uses", () => {
+    for (const symbol of "αβεσλΩ←→×·≤≥≠∧∨¬∀∃∈∉∩∪⊆∅⟨⟩₀₁₂↑∘∣") {
+      expect(hintAt(`x ${symbol} y`, 2)?.symbol).toBe(symbol);
+    }
+  });
+
+  test("is not given for what a keyboard has", () => {
+    expect(hintAt("a + b", 2)).toBeNull();
+    expect(hintAt("fun x => x", 4)).toBeNull();
+    // The table has `\\` for a backslash.
+    expect(hintAt("a \\ b", 2)).toBeNull();
+    expect(hintAt("", 0)).toBeNull();
+  });
+
+  test("is not given inside a literal, where abbreviations are off", () => {
+    expect(hintAt('def s := "a → b"', 12)).toBeNull();
+    expect(hintAt("def c := '→'", 10)).toBeNull();
+    expect(
+      hintAt('def s := "a → b"', 12, { inStringLiterals: true })?.symbol
+    ).toBe("→");
+    // Comments and interpolated code are not literals.
+    expect(hintAt("-- a → b", 5)?.symbol).toBe("→");
+    expect(hintAt('s!"{a ∘ b}"', 6)?.symbol).toBe("∘");
+  });
+
+  test("follows the configured leader and custom abbreviations", () => {
+    const config = { leader: ",", customTranslations: { paw: "🐾" } };
+    expect(hintAt("x → y", 2, config)?.abbreviations).toContain(",to");
+    expect(hintAt("🐾", 0, config)?.abbreviations).toEqual([",paw"]);
   });
 });

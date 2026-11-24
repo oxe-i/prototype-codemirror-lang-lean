@@ -11,8 +11,15 @@ import { leanIndent } from "./indent";
 import { leanUnicodeInput } from "./unicode-input";
 import type { LeanUnicodeInputConfig } from "./unicode-input";
 
-export { leanUnicodeInput, convertLeanAbbreviations } from "./unicode-input";
-export type { LeanUnicodeInputConfig } from "./unicode-input";
+export {
+  leanUnicodeInput,
+  convertLeanAbbreviations,
+  abbreviationHintAt,
+} from "./unicode-input";
+export type {
+  LeanUnicodeInputConfig,
+  AbbreviationHint,
+} from "./unicode-input";
 
 export const leanLanguage = LRLanguage.define({
   name: "lean",

@@ -15,6 +15,11 @@ starts where the line before it starts, one level deeper after an opening
 bracket or under a focus dot (`· tactic`). Lean's layout carries meaning, so
 lines that already exist are never re-indented.
 
+Two more things are taken from that extension. `sorry`, `admit` and `#exit` are
+tagged as invalid rather than as keywords, so that code left unfinished stands
+out. And `'`, `!` and `?` count as parts of a word, so that a double click or a
+word motion takes `x'`, `get!` and `find?` whole.
+
 The lexical rules follow the Lean 4 sources: `src/Init/Meta/Defs.lean` for what
 may appear in an identifier, and `src/Lean/Parser/Basic.lean` for comments,
 strings, characters and numbers. The keyword list is drawn from
@@ -58,6 +63,8 @@ to follow upstream.
   that starts with `al`.
 - `\\` gives a single `\`.
 - Undo brings back the text as typed.
+- Resting the pointer on a symbol shows how to type it: "Type ⟨ using `\<` or
+  `\langle`. ⟨ can be auto-closed with ⟩ using `\<>`."
 
 One thing differs from VS Code. There, abbreviations are also replaced inside
 string and character literals, which turns the escapes `\t`, `\r` and `\"`
@@ -76,13 +83,15 @@ lean({
     eagerReplacement: true, // lean4.input.eagerReplacementEnabled
     customTranslations: { foo: "☺" }, // lean4.input.customTranslations
     inStringLiterals: false,
+    hover: true, // the hints on symbols
   },
 });
 ```
 
-The extension is exported on its own as `leanUnicodeInput()`, and
+The extension is exported on its own as `leanUnicodeInput()`.
 `convertLeanAbbreviations` is a command that replaces what is being typed right
-away (what <kbd>Tab</kbd> runs).
+away (what <kbd>Tab</kbd> runs), and `abbreviationHintAt(state, pos)` returns
+what the hover shows, for a host that wants to present it differently.
 
 [vscode-lean4]: https://github.com/leanprover/vscode-lean4
 [unicode-input]: https://www.npmjs.com/package/@leanprover/unicode-input
