@@ -52,12 +52,51 @@ Program(
   TypeName, TypeName, TypeName, TypeName, TypeName, TypeName
 )
 
-# Other capitalised names are ordinary identifiers
+# Other capitalised names are ordinary identifiers, whether dotted or not
 
 RotationalCipher
 Complex.add
-Nat.succ
+Complex.re
 
 ==>
 
 Program(Identifier, Identifier, Identifier)
+
+# A curated type name used as a namespace qualifier
+
+Nat.succ
+IO.println
+List.map Nat.succ
+
+==>
+
+Program(QualifiedType, QualifiedType, QualifiedType, QualifiedType)
+
+# Falls back gracefully when nothing valid follows the dot
+
+Nat.
+IO. foo
+
+==>
+
+Program(TypeName, Operator, TypeName, Operator, Identifier)
+
+# QualifiedType is deliberately single-level, not folding in further dots
+
+Nat.Something.Else
+
+==>
+
+Program(QualifiedType, Operator, Identifier)
+
+# A "." right after a closing bracket is always a plain projection
+
+(x).toList
+[1, 2].map
+
+==>
+
+Program(
+  Parens(Identifier), Operator, Identifier,
+  Brackets(Number, Operator, Number), Operator, Identifier
+)

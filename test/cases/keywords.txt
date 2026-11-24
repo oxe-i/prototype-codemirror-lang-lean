@@ -1,14 +1,41 @@
 # Commands
 
-def theorem structure inductive class instance
-namespace end section open import variable
+def theorem instance
+end section open import variable
 
 ==>
 
 Program(
-  Keyword, Keyword, Keyword, Keyword, Keyword, Keyword,
-  Keyword, Keyword, Keyword, Keyword, Keyword, Keyword
+  Keyword, Keyword, Keyword,
+  Keyword, Keyword, Keyword, Keyword, Keyword
 )
+
+# structure/inductive/class/namespace combine with the name that follows
+
+structure Foo
+inductive Bar
+class Baz
+namespace Qux
+
+==>
+
+Program(TypeDecl, TypeDecl, TypeDecl, NamespaceDecl)
+
+# On its own, with nothing valid to declare yet, still falls back to Keyword
+
+structure
+
+==>
+
+Program(Keyword)
+
+# Likewise when followed by something that can't be a name
+
+structure := end
+
+==>
+
+Program(Keyword, Operator, Keyword)
 
 # Terms and binders
 
@@ -61,7 +88,7 @@ Nat.rec
 
 ==>
 
-Program(Identifier, Identifier, Identifier, Identifier)
+Program(Identifier, Identifier, QualifiedType, Identifier)
 
 # Hash commands
 

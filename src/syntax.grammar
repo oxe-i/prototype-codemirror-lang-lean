@@ -65,12 +65,29 @@ comment { BlockComment | DocComment | ModuleDoc }
   String { stringStart (stringContent | Escape)* stringEnd }
 }
 
+// Deliberately single-level only (`IO.println`, not `Std.HashMap.empty`).
+// A `dottedRest`-style continuation for further segments was tried two
+// ways — a token ranked above Operator in the global @precedence table,
+// and scoped via @local tokens — and both broke real code: global
+// precedence made it win at *any* "." including after a closing
+// paren/bracket like `(expr).toList` (not a valid continuation of
+// anything, no fallback, error node); @local tokens rejected the setup
+// outright ("used together with other tokens"), apparently because
+// QualifiedType is reachable from every `atom` position, so its local
+// scope isn't isolated the way BlockComment's is. Single-level sidesteps
+// both: qualifiedTypeStart is one atomic token, so there's no further
+// token-selection decision to get wrong.
+QualifiedType { qualifiedTypeStart }
+
 atom {
   Keyword |
   SymbolKeyword |
   HashCommand |
   Sort |
   TypeName |
+  QualifiedType |
+  TypeDecl |
+  NamespaceDecl |
   BooleanLiteral |
   NameLiteral |
   Identifier |
@@ -185,6 +202,20 @@ BooleanLiteral { word<"true"> | word<"false"> }
 @tokens {
   whitespace { @whitespace+ }
 
+  // Declaration sites for `structure`/`inductive`/`class` and `namespace`.
+  // `TypeDecl { typeDeclKeyword Identifier }` as a grammar rule hits the
+  // same shift/reduce conflict `StringInterp` did — atom can reduce
+  // `typeDeclKeyword` on its own before seeing whether an Identifier
+  // follows. Baking keyword + whitespace + name into one token (same fix
+  // as `interpStringStart`) sidesteps it: the choice happens inside this
+  // token's own regex, so `structure` alone (nothing valid follows yet)
+  // still falls back to plain `typeDeclKeyword`/`Keyword` rather than a
+  // dead end. Trade-off: the whole "structure Foo" span gets one tag, not
+  // "structure" keyword-colored and "Foo" separately — same ceiling as
+  // QualifiedType above, for the same reason.
+  TypeDecl { ("class" | "inductive" | "structure") @whitespace+ idPart }
+  NamespaceDecl { "namespace" @whitespace+ idPart }
+
   // Declared here so that they become named nodes and can be styled.
   // `@detectDelim` only pairs up the ASCII brackets, so ⟨ ⟩ needs the
   // matching props spelled out or bracket matching skips it.
@@ -220,6 +251,31 @@ BooleanLiteral { word<"true"> | word<"false"> }
   // `Nat.succ` is one identifier while `x.1` is not.
   idPart { idFirst idRest* | "«" ![»\n]* "»" }
   Identifier { idPart ("." idPart)* }
+
+  // A curated type name used as a namespace qualifier, e.g. `IO` in
+  // `IO.println`. This list has to be kept in sync with `TypeName` below by
+  // hand — it can't reference `word<>`, since that's a grammar-level
+  // construct and this is a lexer-level token. The name, dot and first
+  // segment are baked into one token (mirroring `interpStringStart`) so
+  // that `IO.` with nothing valid after it still falls back cleanly to
+  // `TypeName "IO"` + `Operator "."` rather than a dead end: the choice is
+  // made entirely inside this token's own regex, before the parser commits
+  // to anything.
+  qualifiedTypeStart {
+    ("Add" | "And" | "Array" | "BEq" | "BitVec" | "Bool" |
+     "ByteArray" | "Char" | "Decidable" | "DecidableEq" | "Div" | "Empty" |
+     "Eq" | "Except" | "ExceptT" | "Fin" | "Float" | "Float32" |
+     "FloatArray" | "GE" | "GT" | "HEq" | "HashMap" | "HashSet" |
+     "Hashable" | "IO" | "Id" | "Iff" | "Inhabited" | "Int" |
+     "Int8" | "Int16" | "Int32" | "Int64" | "LE" | "LT" |
+     "LawfulBEq" | "List" | "MProd" | "Mod" | "Mul" | "Nat" |
+     "Ne" | "Neg" | "Nonempty" | "Not" | "Option" | "OptionT" |
+     "Or" | "Ord" | "Ordering" | "PEmpty" | "PProd" | "PSigma" |
+     "PSum" | "PUnit" | "Pow" | "Prod" | "ReaderM" | "ReaderT" |
+     "Repr" | "Sigma" | "StateM" | "StateT" | "String" | "Sub" |
+     "Subarray" | "Subtype" | "Sum" | "Task" | "Thunk" | "ToString" |
+     "UInt8" | "UInt16" | "UInt32" | "UInt64" | "USize" | "Unit") "." idPart
+  }
 
   NameLiteral { "`" "`"? idPart ("." idPart)* }
   HashCommand { "#" idFirst idRest* }
@@ -305,7 +361,7 @@ BooleanLiteral { word<"true"> | word<"false"> }
     docCommentStart, moduleDocStart, blockCommentStart,
     RawString, stringStart, Char, CharEscape,
     Scientific, Number,
-    HashCommand, NameLiteral, Identifier,
+    HashCommand, NameLiteral, qualifiedTypeStart, TypeDecl, NamespaceDecl, Identifier,
     SymbolKeyword,
     whitespace,
     Operator,
