@@ -16,13 +16,28 @@ Program(String, String)
 
 Program(String(Escape, Escape), String(Escape))
 
-# Interpolation is part of the literal, and s! is an identifier
+# s!/f! combine with an immediately-following string into StringInterp
 
 s!"sum is {1 + 2}"
+f!"formatted {x}"
 
 ==>
 
-Program(Identifier, String)
+Program(StringInterp(InterpPrefix), StringInterp(InterpPrefix))
+
+# Without an immediately-adjacent quote, s!/f! are just identifiers
+
+s! "space breaks it"
+s!
+def f! : Nat := 1
+
+==>
+
+Program(
+  Identifier, String,
+  Identifier,
+  Keyword, Identifier, Operator, TypeName, Operator, Number
+)
 
 # Raw strings
 
