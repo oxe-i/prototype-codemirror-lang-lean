@@ -7,8 +7,13 @@ This repo contains the grammar for the Lean 4 language.
 Lean's syntax is user-extensible, so no fixed grammar can describe it. This one
 highlights Lean's tokens — keywords, sorts and core types, literals, comments and
 operators — and nests them inside balanced `()`, `[]`, `{}` and `⟨⟩` nodes so
-that bracket matching, folding and indentation work. A catch-all token means no
-input, however malformed, can stop the parse.
+that bracket matching and folding work. A catch-all token means no input,
+however malformed, can stop the parse.
+
+Indentation follows the [Lean 4 VS Code extension][vscode-lean4]: a new line
+starts where the line before it starts, one level deeper after an opening
+bracket or under a focus dot (`· tactic`). Lean's layout carries meaning, so
+lines that already exist are never re-indented.
 
 The lexical rules follow the Lean 4 sources: `src/Init/Meta/Defs.lean` for what
 may appear in an identifier, and `src/Lean/Parser/Basic.lean` for comments,

@@ -2,12 +2,12 @@ import { parser } from "./syntax.grammar";
 import {
   LRLanguage,
   LanguageSupport,
-  delimitedIndent,
   foldInside,
   foldNodeProp,
   indentNodeProp,
 } from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
+import { leanIndent } from "./indent";
 import { leanUnicodeInput } from "./unicode-input";
 import type { LeanUnicodeInputConfig } from "./unicode-input";
 
@@ -46,12 +46,10 @@ export const leanLanguage = LRLanguage.define({
         // priority over the generic "{ }" rule above for this one case.
         "InterpBraces/}": t.meta,
       }),
-      indentNodeProp.add({
-        Parens: delimitedIndent({ closing: ")" }),
-        Brackets: delimitedIndent({ closing: "]" }),
-        Braces: delimitedIndent({ closing: "}" }),
-        Anonymous: delimitedIndent({ closing: "⟩" }),
-      }),
+      // One rule for every node, so that neither the bracket-aligning
+      // default for delimited nodes nor the column-0 default for the top
+      // node applies. See `leanIndent`.
+      indentNodeProp.add(() => leanIndent),
       foldNodeProp.add({
         "Parens Brackets Braces Anonymous": foldInside,
         "BlockComment DocComment ModuleDoc": foldInside,
@@ -64,7 +62,6 @@ export const leanLanguage = LRLanguage.define({
       block: { open: "/-", close: "-/" },
     },
     closeBrackets: { brackets: ["(", "[", "{", "⟨", '"'] },
-    indentOnInput: /^\s*[\}\)\]⟩]$/,
   },
 });
 
