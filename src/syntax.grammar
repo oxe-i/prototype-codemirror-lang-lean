@@ -191,23 +191,28 @@ Sort { word<"Type"> | word<"Prop"> | word<"Sort"> }
 TypeName {
   word<"Add"> | word<"And"> | word<"Array"> | word<"BEq"> | word<"BitVec"> |
   word<"Bool"> | word<"ByteArray"> | word<"Char"> | word<"Decidable"> |
-  word<"DecidableEq"> | word<"Div"> | word<"Empty"> | word<"Eq"> |
-  word<"Except"> | word<"ExceptT"> | word<"Fin"> | word<"Float"> |
-  word<"Float32"> | word<"FloatArray"> | word<"GE"> | word<"GT"> |
-  word<"HEq"> | word<"HashMap"> | word<"HashSet"> | word<"Hashable"> |
-  word<"IO"> | word<"Id"> | word<"Iff"> | word<"Inhabited"> |
-  word<"Int"> | word<"Int8"> | word<"Int16"> | word<"Int32"> |
-  word<"Int64"> | word<"LE"> | word<"LT"> | word<"LawfulBEq"> |
-  word<"List"> | word<"MProd"> | word<"Mod"> | word<"Mul"> | word<"Nat"> |
-  word<"Ne"> | word<"Neg"> | word<"Nonempty"> | word<"Not"> |
-  word<"Option"> | word<"OptionT"> | word<"Or"> | word<"Ord"> |
-  word<"Ordering"> | word<"PEmpty"> | word<"PProd"> | word<"PSigma"> |
-  word<"PSum"> | word<"PUnit"> | word<"Pow"> | word<"Prod"> |
-  word<"ReaderM"> | word<"ReaderT"> | word<"Repr"> | word<"Sigma"> |
+  word<"DecidableEq"> | word<"DHashMap"> | word<"Div"> | word<"DTreeMap"> |
+  word<"Empty"> | word<"Eq"> | word<"Except"> | word<"ExceptT"> |
+  word<"Expr"> | word<"ExtDHashMap"> | word<"ExtHashMap"> |
+  word<"ExtHashSet"> | word<"False"> | word<"Fin"> | word<"Float"> |
+  word<"Float32"> | word<"FloatArray"> | word<"Format"> | word<"GE"> |
+  word<"GT"> | word<"HEq"> | word<"HashMap"> | word<"HashSet"> |
+  word<"Hashable"> | word<"IO"> | word<"Id"> | word<"Iff"> |
+  word<"Inhabited"> | word<"Int"> | word<"Int8"> | word<"Int16"> |
+  word<"Int32"> | word<"Int64"> | word<"LE"> | word<"LT"> |
+  word<"LawfulBEq"> | word<"List"> | word<"MProd"> | word<"Mod"> |
+  word<"Mul"> | word<"Nat"> | word<"Ne"> | word<"Neg"> | word<"Nonempty"> |
+  word<"Not"> | word<"Option"> | word<"OptionT"> | word<"Or"> | word<"Ord"> |
+  word<"Ordering"> | word<"PEmpty"> | word<"PLift"> | word<"PProd"> |
+  word<"PSigma"> | word<"PSum"> | word<"PUnit"> | word<"Pow"> | word<"Prod"> |
+  word<"Quot"> | word<"Quotient"> | word<"Range"> | word<"ReaderM"> |
+  word<"ReaderT"> | word<"Repr"> | word<"Sigma"> | word<"ST"> |
   word<"StateM"> | word<"StateT"> | word<"String"> | word<"Sub"> |
-  word<"Subarray"> | word<"Subtype"> | word<"Sum"> | word<"Task"> |
-  word<"Thunk"> | word<"ToString"> | word<"UInt8"> | word<"UInt16"> |
-  word<"UInt32"> | word<"UInt64"> | word<"USize"> | word<"Unit">
+  word<"Subarray"> | word<"Subtype"> | word<"Sum"> | word<"Syntax"> |
+  word<"Task"> | word<"Thunk"> | word<"ToString"> | word<"TreeMap"> |
+  word<"TreeSet"> | word<"True"> | word<"UInt8"> | word<"UInt16"> |
+  word<"UInt32"> | word<"UInt64"> | word<"ULift"> | word<"USize"> |
+  word<"Unit"> | word<"Vector">
 }
 
 BooleanLiteral { word<"true"> | word<"false"> }
@@ -261,19 +266,21 @@ BooleanLiteral { word<"true"> | word<"false"> }
   // made entirely inside this token's own regex, before the parser commits
   // to anything.
   qualifiedTypeStart {
-    ("Add" | "And" | "Array" | "BEq" | "BitVec" | "Bool" |
-     "ByteArray" | "Char" | "Decidable" | "DecidableEq" | "Div" | "Empty" |
-     "Eq" | "Except" | "ExceptT" | "Fin" | "Float" | "Float32" |
-     "FloatArray" | "GE" | "GT" | "HEq" | "HashMap" | "HashSet" |
-     "Hashable" | "IO" | "Id" | "Iff" | "Inhabited" | "Int" |
-     "Int8" | "Int16" | "Int32" | "Int64" | "LE" | "LT" |
-     "LawfulBEq" | "List" | "MProd" | "Mod" | "Mul" | "Nat" |
-     "Ne" | "Neg" | "Nonempty" | "Not" | "Option" | "OptionT" |
-     "Or" | "Ord" | "Ordering" | "PEmpty" | "PProd" | "PSigma" |
-     "PSum" | "PUnit" | "Pow" | "Prod" | "ReaderM" | "ReaderT" |
-     "Repr" | "Sigma" | "StateM" | "StateT" | "String" | "Sub" |
-     "Subarray" | "Subtype" | "Sum" | "Task" | "Thunk" | "ToString" |
-     "UInt8" | "UInt16" | "UInt32" | "UInt64" | "USize" | "Unit") "." idPart
+    ("Add" | "And" | "Array" | "BEq" | "BitVec" | "Bool" | "ByteArray" |
+     "Char" | "Decidable" | "DecidableEq" | "DHashMap" | "Div" | "DTreeMap" |
+     "Empty" | "Eq" | "Except" | "ExceptT" | "Expr" | "ExtDHashMap" |
+     "ExtHashMap" | "ExtHashSet" | "False" | "Fin" | "Float" | "Float32" |
+     "FloatArray" | "Format" | "GE" | "GT" | "HEq" | "HashMap" | "HashSet" |
+     "Hashable" | "IO" | "Id" | "Iff" | "Inhabited" | "Int" | "Int8" |
+     "Int16" | "Int32" | "Int64" | "LE" | "LT" | "LawfulBEq" | "List" |
+     "MProd" | "Mod" | "Mul" | "Nat" | "Ne" | "Neg" | "Nonempty" | "Not" |
+     "Option" | "OptionT" | "Or" | "Ord" | "Ordering" | "PEmpty" | "PLift" |
+     "PProd" | "PSigma" | "PSum" | "PUnit" | "Pow" | "Prod" | "Quot" |
+     "Quotient" | "Range" | "ReaderM" | "ReaderT" | "Repr" | "Sigma" | "ST" |
+     "StateM" | "StateT" | "String" | "Sub" | "Subarray" | "Subtype" | "Sum" |
+     "Syntax" | "Task" | "Thunk" | "ToString" | "TreeMap" | "TreeSet" |
+     "True" | "UInt8" | "UInt16" | "UInt32" | "UInt64" | "ULift" | "USize" |
+     "Unit" | "Vector") "." idPart
   }
 
   NameLiteral { "`" "`"? idPart ("." idPart)* }
