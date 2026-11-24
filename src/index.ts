@@ -62,7 +62,16 @@ export const leanLanguage = LRLanguage.define({
       line: "--",
       block: { open: "/-", close: "-/" },
     },
-    closeBrackets: { brackets: ["(", "[", "{", "⟨", '"'] },
+    closeBrackets: {
+      brackets: ["(", "[", "{", "⟨", '"'],
+      // A quote typed right after a word is not closed, unless the word is
+      // one of these. `!` counts as part of a word here, see `wordChars`.
+      stringPrefixes: ["s!", "f!", "m!", "r"],
+    },
+    // `x'`, `get!` and `find?` are names, so a double click, word motion and
+    // whole-word search take each as one word. The Lean 4 VS Code extension
+    // does this with its `wordPattern`.
+    wordChars: "'!?",
   },
 });
 
