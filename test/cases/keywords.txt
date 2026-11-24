@@ -98,3 +98,23 @@ use
 ==>
 
 Program(Identifier, Identifier, Identifier)
+
+# Tactics named with everyday words stay plain, as names and in a proof
+
+| branch (value : α) (left right : Tree α)
+next : Option Nat
+| first : Week
+x.volumes.first .fail
+by cases h with | inl h => right; exact h
+
+==>
+
+Program(
+  Operator, Identifier, Parens(Identifier, Operator, Identifier),
+  Parens(Identifier, Identifier, Operator, Identifier, Identifier),
+  Identifier, Operator, TypeName, TypeName,
+  Operator, Identifier, Operator, Identifier,
+  Identifier, Operator, Identifier,
+  Keyword, Identifier, Identifier, Keyword, Operator, Identifier, Identifier, Operator,
+  Identifier, Operator, Keyword, Identifier
+)

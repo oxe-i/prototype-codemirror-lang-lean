@@ -36,6 +36,14 @@ strings, characters and numbers. The keyword list is drawn from
 keyword the VS Code extension's grammar has; being a curated
 list rather than a closed one, it is the part most likely to need extending.
 
+A tactic's name is a keyword to Lean only where a tactic can start, and an
+ordinary name anywhere else, which a grammar of tokens cannot tell apart. So
+the tactics named with everyday words (`case`, `cases`, `change`, `clear`,
+`delta`, `done`, `ext`, `fail`, `first`, `focus`, `iterate`, `left`, `next`,
+`replace`, `right`, `skip`, `split`) are deliberately not in the list: in
+`(left right : Tree α)`, `next : Option Nat` or `.fail` they are names, and
+that is how programs use them far more often than proofs do.
+
 ⚠️ To ensure that the package can be integrated on the Exercism website, don't change the packages' versions:
 
 ```json

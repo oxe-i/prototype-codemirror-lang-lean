@@ -345,27 +345,32 @@ doKeyword {
 // in Init/Tactics.lean and Lean/Elab/Tactic that a reader would recognise.
 // Mathlib's tactics (`by_contra`, `trans`, `use`) are left out, like its
 // `lemma`: on Exercism they are not available, and to Lean they are names.
+//
+// Also left out, on purpose, are the tactics whose names are everyday words:
+// `case`, `cases`, `change`, `clear`, `delta`, `done`, `ext`, `fail`,
+// `first`, `focus`, `iterate`, `left`, `next`, `replace`, `right`, `skip`
+// and `split`. To Lean a tactic's name is a keyword only where a tactic can
+// start, and anywhere else an ordinary name, which a grammar of tokens
+// cannot tell apart. Code on Exercism uses these words as names far more
+// often than as tactics (`(left right : Tree α)`, `next : Option Nat`,
+// `| first : Week`, `.fail`), so they stay plain everywhere.
 tacticKeyword {
   word<"ac_rfl"> | word<"all_goals"> | word<"any_goals"> | word<"apply"> |
   word<"apply?"> | word<"assumption"> | word<"assumption_mod_cast"> |
-  word<"by_cases"> | word<"case"> | word<"cases"> |
-  word<"change"> | word<"clear"> | word<"congr"> | word<"constructor"> |
-  word<"contradiction"> | word<"conv"> | word<"decide"> | word<"delta"> |
-  word<"done"> | word<"dsimp"> | word<"exact"> | word<"exact?"> |
-  word<"exact_mod_cast"> | word<"exfalso"> | word<"ext"> | word<"fail"> |
-  word<"first"> | word<"focus"> | word<"funext"> | word<"generalize"> |
-  word<"grind"> | word<"guard_expr"> | word<"guard_hyp"> |
-  word<"guard_target"> | word<"induction"> | word<"infer_instance"> |
-  word<"injection"> | word<"injections"> | word<"intro"> | word<"intros"> |
-  word<"iterate"> | word<"left"> | word<"native_decide"> | word<"next"> |
-  word<"norm_cast"> | word<"norm_cast_add_elim"> | word<"obtain"> | word<"omega"> | word<"push_cast"> |
-  word<"rcases"> | word<"refine"> | word<"rename_i"> | word<"replace"> |
-  word<"revert"> | word<"rfl"> | word<"right"> | word<"rintro"> |
+  word<"by_cases"> | word<"congr"> | word<"constructor"> |
+  word<"contradiction"> | word<"conv"> | word<"decide"> | word<"dsimp"> |
+  word<"exact"> | word<"exact?"> | word<"exact_mod_cast"> | word<"exfalso"> |
+  word<"funext"> | word<"generalize"> | word<"grind"> | word<"guard_expr"> |
+  word<"guard_hyp"> | word<"guard_target"> | word<"induction"> |
+  word<"infer_instance"> | word<"injection"> | word<"injections"> |
+  word<"intro"> | word<"intros"> | word<"native_decide"> |
+  word<"norm_cast"> | word<"norm_cast_add_elim"> | word<"obtain"> |
+  word<"omega"> | word<"push_cast"> | word<"rcases"> | word<"refine"> |
+  word<"rename_i"> | word<"revert"> | word<"rfl"> | word<"rintro"> |
   word<"rotate_left"> | word<"rotate_right"> | word<"rw"> | word<"rwa"> |
   word<"simp"> | word<"simp_all"> | word<"simp_arith"> | word<"simpa"> |
-  word<"skip"> | word<"specialize"> | word<"split"> | word<"subst"> |
-  word<"subst_vars"> | word<"symm"> | word<"trivial"> |
-  word<"unfold">
+  word<"specialize"> | word<"subst"> | word<"subst_vars"> | word<"symm"> |
+  word<"trivial"> | word<"unfold">
 }
 
 Keyword { commandKeyword | termKeyword | doKeyword | tacticKeyword }
