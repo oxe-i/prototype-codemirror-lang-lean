@@ -63,16 +63,21 @@ comment { BlockComment | DocComment | ModuleDoc }
 
 @skip {} {
   String { stringStart (stringContent | Escape)* stringEnd }
-  // `s!`/`f!` string interpolation. The prefix and opening quote are baked
-  // into one token (InterpPrefix), same fix as QualifiedType above: `s!`
-  // alone (no immediately-following quote, e.g. used as an
-  // ordinary `!`-suffixed identifier, or with a space before the string)
-  // simply doesn't match this token at all, so it falls back to plain
-  // Identifier with no dead end. Reuses String's own local tokens
+  // `s!`/`f!` string interpolation. InterpPrefix is a hand-written
+  // external tokenizer (see tokens.ts) rather than a declarative token:
+  // it only matches the two prefix letters, and only when a quote
+  // immediately follows, so `s!` alone (used as an ordinary
+  // `!`-suffixed identifier, or with a space before the string) offers
+  // no token at all and falls back to plain Identifier. stringStart
+  // then covers the opening quote the same way String does, so the
+  // whole span — both quotes and the content — gets one uniform style,
+  // with just the prefix styled apart. Reuses String's own local tokens
   // (stringContent/Escape/stringEnd), so `\`-escapes inside an
   // interpolated string still nest the same way.
-  StringInterp { InterpPrefix (stringContent | Escape)* stringEnd }
+  StringInterp { InterpPrefix stringStart (stringContent | Escape)* stringEnd }
 }
+
+@external tokens interpPrefixToken from "./tokens" { InterpPrefix }
 
 // Deliberately single-level only (`IO.println`, not `Std.HashMap.empty`).
 // A `dottedRest`-style continuation for further segments was tried two
@@ -278,11 +283,6 @@ BooleanLiteral { word<"true"> | word<"false"> }
   // the `String` rule below for the body, which is defined separately so
   // that `\`-escapes can be styled as a distinct `Escape` node.
   stringStart { '"' }
-  // `s!"..."` (string interpolation) and `f!"..."` (Format interpolation).
-  // No whitespace is allowed between the prefix and the quote in real
-  // Lean, which this enforces for free by requiring them adjacent in one
-  // token.
-  InterpPrefix { ("s!" | "f!") '"' }
   // Raw strings are `r##..."..."##...` and the hash counts have to balance,
   // which is not a regular language. The two widths that occur in practice are
   // spelled out; wider ones fall back to an identifier followed by a string.
@@ -358,7 +358,7 @@ BooleanLiteral { word<"true"> | word<"false"> }
   @precedence {
     LineComment,
     docCommentStart, moduleDocStart, blockCommentStart,
-    RawString, InterpPrefix, stringStart, Char, CharEscape,
+    RawString, stringStart, Char, CharEscape,
     Scientific, Number,
     HashCommand, NameLiteral, qualifiedTypeStart, Identifier,
     SymbolKeyword,
