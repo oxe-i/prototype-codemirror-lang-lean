@@ -7,22 +7,112 @@ This repo contains the grammar for the Lean 4 language.
 Lean's syntax is user-extensible, so no fixed grammar can describe it. This one
 highlights Lean's tokens — keywords, sorts and core types, literals, comments and
 operators — and nests them inside balanced `()`, `[]`, `{}` and `⟨⟩` nodes so
-that bracket matching, folding and indentation work. A catch-all token means no
-input, however malformed, can stop the parse.
+that bracket matching and folding work. A catch-all token means no input,
+however malformed, can stop the parse.
+
+Indentation follows the [Lean 4 VS Code extension][vscode-lean4]: a new line
+starts where the line before it starts, one level deeper after an opening
+bracket or under a focus dot (`· tactic`). Lean's layout carries meaning, so
+lines that already exist are never re-indented.
+
+Two more things are taken from that extension. `sorry`, `admit` and `#exit` are
+tagged as invalid rather than as keywords, so that code left unfinished stands
+out. And `'`, `!` and `?` count as parts of a word, so that a double click or a
+word motion takes `x'`, `get!` and `find?` whole.
+
+The highlighting covers what that extension's grammar marks without a Lean
+server: the name a declaration introduces (`def add`, `structure Point`),
+attributes (`@[simp]`, `attribute [simp]`), modifiers (`private`, `partial`),
+and the strings of `m!`, `panic!`, `throwError`, `dbg_trace` and
+`reportIssue!`, whose `{…}` hold code like those of `s!`. What it adds on top
+is a curated list of core type names (`Nat`, `Std.HashMap`,
+`Std.Time.PlainDateTime`), which VS Code leaves plain. What needs the Lean
+server (local variables, fields, tactics defined by the user) is out of reach.
 
 The lexical rules follow the Lean 4 sources: `src/Init/Meta/Defs.lean` for what
 may appear in an identifier, and `src/Lean/Parser/Basic.lean` for comments,
 strings, characters and numbers. The keyword list is drawn from
-`src/Lean/Parser/{Command,Term,Do}.lean` plus the core tactics; being a curated
+`src/Lean/Parser/{Command,Term,Do}.lean` plus the core tactics, and has every
+keyword the VS Code extension's grammar has; being a curated
 list rather than a closed one, it is the part most likely to need extending.
+
+A tactic's name is a keyword to Lean only where a tactic can start, and an
+ordinary name anywhere else, which a grammar of tokens cannot tell apart. So
+the tactics named with everyday words (`case`, `cases`, `change`, `clear`,
+`delta`, `done`, `ext`, `fail`, `first`, `focus`, `iterate`, `left`, `next`,
+`replace`, `right`, `skip`, `split`) are deliberately not in the list: in
+`(left right : Tree α)`, `next : Option Nat` or `.fail` they are names, and
+that is how programs use them far more often than proofs do.
 
 ⚠️ To ensure that the package can be integrated on the Exercism website, don't change the packages' versions:
 
 ```json
 "@codemirror/language": "^6.10.1",
+"@codemirror/state": "^6.0.0",
+"@codemirror/view": "^6.0.0",
 "@lezer/highlight": "^1.2.0",
 "@lezer/lr": "^1.4.0"
 ```
+
+The `@codemirror/state` and `@codemirror/view` ranges are wide on purpose. An
+editor extension only works with the copy of those two packages that the editor
+itself was built from, so the ranges have to accept whatever version the website
+has installed, rather than make the package manager install a second one.
+
+## Unicode input
+
+`lean()` also brings Lean's `\`-abbreviations: type `\to` and get `→`, `\<>` and
+get `⟨⟩` with the cursor in between, `\alpha` (or just `\a`) and get `α`.
+
+They behave as in the [Lean 4 VS Code extension][vscode-lean4], because they are
+the same: the table of abbreviations and the rules for replacing them come from
+[`@leanprover/unicode-input`][unicode-input], the package that extension is built
+on. This repository contains neither, only the code that connects that package to
+CodeMirror (`src/unicode-input.ts`), so updating the dependency is all it takes
+to follow upstream.
+
+- The abbreviation being typed is underlined.
+- It is replaced when the next character can't be part of an abbreviation
+  (`\to` followed by a space), or at once when nothing longer starts with it
+  (`\forall`).
+- Moving the cursor away, pressing <kbd>Tab</kbd> or leaving the editor replaces
+  it too. <kbd>Tab</kbd> is only taken while an abbreviation is being typed.
+- What was typed needn't be complete: `\al` gives `∀`, the shortest abbreviation
+  that starts with `al`.
+- `\\` gives a single `\`.
+- Undo brings back the text as typed.
+- Resting the pointer on a symbol shows how to type it: "Type ⟨ using `\<` or
+  `\langle`. ⟨ can be auto-closed with ⟩ using `\<>`."
+
+One thing differs from VS Code. There, abbreviations are also replaced inside
+string and character literals, which turns the escapes `\t`, `\r` and `\"`
+into `▸`, `→` and `Ä` as you type them. Here a `\` typed inside a literal is left
+alone (the code inside an `s!"…{…}…"` interpolation is still code). Pass
+`inStringLiterals: true` for VS Code's behaviour.
+
+```ts
+import { lean } from "@exercism/codemirror-lang-lean";
+
+lean(); // abbreviations on, with VS Code's defaults
+lean({ unicodeInput: false }); // highlighting only
+lean({
+  unicodeInput: {
+    leader: "\\", // lean4.input.leader
+    eagerReplacement: true, // lean4.input.eagerReplacementEnabled
+    customTranslations: { foo: "☺" }, // lean4.input.customTranslations
+    inStringLiterals: false,
+    hover: true, // the hints on symbols
+  },
+});
+```
+
+The extension is exported on its own as `leanUnicodeInput()`.
+`convertLeanAbbreviations` is a command that replaces what is being typed right
+away (what <kbd>Tab</kbd> runs), and `abbreviationHintAt(state, pos)` returns
+what the hover shows, for a host that wants to present it differently.
+
+[vscode-lean4]: https://github.com/leanprover/vscode-lean4
+[unicode-input]: https://www.npmjs.com/package/@leanprover/unicode-input
 
 ## Install
 
@@ -51,18 +141,27 @@ The repo is structured as follows:
 ```text
 .
 ├── src
-│   ├── index.ts (the main plugin)
+│   ├── index.ts (the main plugin: language, highlighting, `lean()`)
 │   ├── syntax.grammar (the Lezer grammar)
-│   └── syntax.grammar.d.ts (the grammar typings)
+│   ├── syntax.grammar.d.ts, syntax.grammar.terms.d.ts (the grammar typings)
+│   ├── type-names.ts (the curated type names, kept in step with the grammar)
+│   ├── ident-utils.ts (what may appear in an identifier)
+│   ├── interp-prefix.ts, std-namespace.ts, qualified-type.ts (hand-written tokenizers)
+│   ├── tokens.ts, std-tokens.ts, qualified-type-tokens.ts (what the grammar imports them through)
+│   ├── indent.ts (indentation on Enter)
+│   └── unicode-input.ts (the `\`-abbreviations)
 ├── test
 │   ├── cases (test cases)
 │   │   └ *.txt (test case)
-│   └── grammar.test.ts (test file)
+│   ├── grammar.test.ts (test file)
+│   ├── indent.test.ts (test file)
+│   ├── parser.ts (the parser the tests share)
+│   └── unicode-input.test.ts (test file)
 ├── tools
 │   └── parse-corpus.mjs (parses a tree of .lean files, dev only)
 ├── index.html (dev server file)
 ├── rollup.config.js (bundling config)
-├── tsconfig.json (typescript confif)
+├── tsconfig.json (typescript config)
 └── vite.config.js (vite dev server config)
 ```
 
@@ -89,7 +188,7 @@ directories you give it and reports both error nodes and `Unknown` tokens (a
 character the tokenizer has no rule for):
 
 ```shell
-node tools/parse-corpus.mjs ../lean/exercises
+bun tools/parse-corpus.mjs ../lean/exercises
 ```
 
 Point it at a checkout of the [Lean track][track], or at Lean's own `src/Init`

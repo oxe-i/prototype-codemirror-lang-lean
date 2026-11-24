@@ -42,14 +42,14 @@ Program(Identifier, Identifier, Identifier, Identifier)
 
 Program(SymbolKeyword, SymbolKeyword, SymbolKeyword, SymbolKeyword)
 
-# Dotted names are one identifier, but a projection is not
+# A dotted name is an Identifier, or starts with QualifiedType (the dot+name) if a known type
 
 Nat.succ
 x.1
 
 ==>
 
-Program(Identifier, Identifier, Operator, Number)
+Program(QualifiedType, Identifier, Identifier, Operator, Number)
 
 # Escaped identifiers
 

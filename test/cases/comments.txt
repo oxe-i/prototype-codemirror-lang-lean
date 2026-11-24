@@ -38,7 +38,7 @@ def x := 1
 
 ==>
 
-Program(DocComment, Keyword, Identifier, Operator, Number)
+Program(DocComment, Keyword, DefinitionName(Identifier), Operator, Number)
 
 # Module doc comments
 

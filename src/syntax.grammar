@@ -51,18 +51,163 @@ comment { BlockComment | DocComment | ModuleDoc }
   NestedComment { nestedStart commentBody }
 }
 
+// Likewise for strings, so that `\n`-style escapes can be styled apart from
+// the surrounding text. `@else stringContent` gives total local coverage —
+// same as `commentContent` above — so there is no position inside a string
+// the local tokenizer cannot advance past.
+@local tokens {
+  stringEnd { '"' }
+  Escape { "\\" _ }
+  @else stringContent
+}
+
+// A second, separate local group for StringInterp's body, distinct from
+// the one above: it needs its own `{` token (InterpBraceStart) so a `{`
+// exits string-content mode instead of being swallowed by `@else`, and
+// that can't just be added to the group above — every position that
+// group applies to would start honoring `{`, including plain (non-`s!`)
+// String, which has no InterpBraces alternative to shift into and would
+// dead-end on any literal `{` in an ordinary string. InterpBraceStart and
+// InterpEscape are capitalized (unlike stringEnd/Escape/stringContent's
+// plain-string counterparts stay) so they're their own visible nodes —
+// InterpEscape is styled the same as Escape, InterpBraceStart the same as
+// InterpPrefix, not as string content.
+@local tokens {
+  interpStringEnd { '"' }
+  InterpEscape { "\\" _ }
+  InterpBraceStart { "{" }
+  @else interpStringContent
+}
+
+@skip {} {
+  String { stringStart (stringContent | Escape)* stringEnd }
+  // `s!`/`f!` string interpolation. InterpPrefix is a hand-written
+  // external tokenizer (see tokens.ts) rather than a declarative token:
+  // it only matches the two prefix letters, and only when a quote
+  // immediately follows, so `s!` alone (used as an ordinary
+  // `!`-suffixed identifier, or with a space before the string) offers
+  // no token at all and falls back to plain Identifier. stringStart
+  // then covers the opening quote the same way String does, so the
+  // whole span — both quotes and the content — gets one uniform style,
+  // with just the prefix styled apart.
+  //
+  // `{...}` interpolation blocks are parsed as real code, recursively —
+  // InterpBraces reuses `item`, the same rule everything else in the
+  // language goes through, so an interpolated expression (including a
+  // *nested* `s!"..."`) gets full, ordinary highlighting rather than
+  // being swallowed as string text. Closes with the plain "}" ordinary
+  // Braces also uses — a *second*, separately-precedenced token for the
+  // closer (mirroring InterpBraceStart) was tried first and broke
+  // ordinary `{ ... }`: token precedence is a single global order, not
+  // scoped per parser state the way local token groups are, so ranking
+  // that second token above "}" to win inside InterpBraces made it win
+  // *everywhere*, including as an ordinary Braces' closer. Reusing "}"
+  // sidesteps the ambiguity entirely; styleTags' `InterpBraces/}` path
+  // selector (see index.ts) colors it like InterpBraceStart, scoped by
+  // tree position instead.
+  StringInterp {
+    InterpPrefix stringStart
+    (interpStringContent | InterpEscape | InterpBraces)*
+    interpStringEnd
+  }
+  // The string of `panic! "…{x}…"` and the like, see keywordInterp below.
+  InterpolatedString {
+    stringStart
+    (interpStringContent | InterpEscape | InterpBraces)*
+    interpStringEnd
+  }
+}
+
+// `panic! "no item at {i}"`, `throwError "…"`, `dbg_trace "…"` and
+// `reportIssue! "…"` take an interpolated string without an `s!` in front,
+// and the Lean 4 VS Code extension's grammar treats their strings that way.
+// InterpKeyword is an external token (see interp-prefix.ts) that is only
+// offered when a quote follows on the same line, so the string this rule
+// requires is always there. Declared out here, like InterpBraces, so that
+// the space between the keyword and the string is skipped as usual.
+keywordInterp { InterpKeyword InterpolatedString }
+
+// Declared outside the `@skip {} { ... }` block above (unlike
+// StringInterp itself): item* needs the ordinary whitespace/comment skip
+// context real code uses everywhere else, not the verbatim, nothing-skipped
+// context string content needs — an interpolated expression like `{ x + 1 }`
+// should allow whitespace around it like any other expression would.
+InterpBraces { InterpBraceStart item* "}" }
+
+@external tokens interpPrefixToken from "./tokens" { InterpPrefix }
+@external tokens interpKeywordToken from "./tokens" { InterpKeyword }
+@external tokens stdNamespaceToken from "./std-tokens" { StdNamespace }
+@external tokens stdTypeNameToken from "./std-tokens" {
+  StdTypeName, stdTypeNameDot[@name=StdTypeName]
+}
+@external tokens qualifiedTypeToken from "./qualified-type-tokens" { QualifiedType }
+
+// `IO.println`, `Nat.succ`: only the curated type name and the dot after it
+// (`IO.`, `Nat.`) get a node/color; the method after that (`println`,
+// `succ`) is left as a plain, unhighlighted Identifier — mirroring
+// StdQualifiedType below (`Std.TreeSet.empty` leaves `empty` plain the
+// same way). QualifiedType is itself the external token (see
+// qualified-type.ts), with no wrapping rule: unlike StdQualifiedType,
+// nothing is required to follow it, so there's no dead end to guard
+// against by verifying a continuation first.
+//
+// An earlier version of this feature fused the type name, dot AND the
+// following segment into one token (`IO.println` as a single node) to
+// dodge a subtler issue: a `dottedRest`-style *further* continuation
+// (`IO.println.foo`) was tried two ways — a token ranked above Operator in
+// the global @precedence table, and scoped via @local tokens — and both
+// broke real code: global precedence made it win at *any* "." including
+// after a closing paren/bracket like `(expr).toList` (not a valid
+// continuation of anything, no fallback, error node); @local tokens
+// rejected the setup outright ("used together with other tokens"),
+// apparently because QualifiedType is reachable from every `atom`
+// position, so its local scope isn't isolated the way BlockComment's is.
+// That problem doesn't apply here: this only ever carves off exactly the
+// curated-name-plus-dot prefix, never more, so there's no further
+// token-selection decision to get wrong regardless of what follows.
+
+// `Std.TreeSet`, `Std.TreeSet.empty`: `Std` and the curated type name each
+// get their own node (and color), the type name taking a following "."
+// along as `IO.` does above (`TreeSet.` in the second example), while
+// anything further (its `empty`) is left as a plain Identifier. StdNamespace
+// and StdTypeName are hand-written external tokenizers (see
+// std-namespace.ts); StdTypeName is deliberately not listed anywhere else
+// in `atom`, so it's only ever a valid continuation right here, not a
+// competing candidate for e.g. plain `Nat.succ` (which stays QualifiedType,
+// unaffected). Unlike QualifiedType above, StdNamespace does need to
+// verify what follows: `Std` alone (as in `open Std`) has no meaning of
+// its own, unlike a curated type name, so splitting off "Std." can't
+// happen unconditionally — see std-namespace.ts.
+StdQualifiedType { StdNamespace StdTypeName }
+// The same with the dot (`Std.TreeSet.`), as a term of its own so that a
+// declaration can tell `def Std.HashMap.foo`, where a name follows, from
+// `def Std.HashMap x`, where a parameter does.
+stdQualifiedDot[@name=StdQualifiedType] { StdNamespace stdTypeNameDot }
+
 atom {
   Keyword |
+  declaration |
+  derivingClause |
+  attributeCommand |
+  Attribute |
+  Modifier |
+  keywordInterp |
+  Incomplete |
   SymbolKeyword |
   HashCommand |
   Sort |
   TypeName |
+  QualifiedType |
+  StdQualifiedType |
+  stdQualifiedDot |
   BooleanLiteral |
   NameLiteral |
   Identifier |
   String |
+  StringInterp |
   RawString |
   Char |
+  CharEscape |
   Scientific |
   Number |
   Operator |
@@ -71,32 +216,116 @@ atom {
 
 word<term> { @specialize<Identifier, term> }
 
+@precedence { qualifiedName, definitionName, derivingInstance, attributeList }
+
+// The commands that introduce a name, and the name they introduce: the
+// Lean 4 VS Code extension's grammar marks it as `entity.name.function`
+// after these keywords. (It lists `lemma` too. That one is Mathlib's, not a
+// keyword of Lean itself, where `lemma` is an ordinary name, so it is left
+// out.) Only an identifier directly after the
+// keyword counts, so `instance : ToString Point` has no name, and a
+// curated type name is left as it is: in `def Nat.double` the `Nat.` keeps
+// its own colour and `double` is the name. The precedence settles the choice
+// between "this identifier is the name" and "the command has no name" in
+// favour of the name; `qualifiedName` ranks above `definitionName` so that
+// the same holds after the `Nat.`, where the rule that could end instead
+// already carries the lower one; the name after `Std.HashMap.` works the
+// same way.
+declaration {
+  declarationKeyword |
+  declarationKeyword !definitionName DefinitionName |
+  declarationKeyword !definitionName QualifiedType |
+  declarationKeyword !definitionName QualifiedType !qualifiedName DefinitionName |
+  declarationKeyword !definitionName StdQualifiedType |
+  declarationKeyword !definitionName stdQualifiedDot |
+  declarationKeyword !definitionName stdQualifiedDot !qualifiedName DefinitionName
+}
+declarationKeyword[@name=Keyword] {
+  word<"abbrev"> | word<"axiom"> | word<"class"> | word<"coinductive"> |
+  word<"def"> | word<"inductive"> | instanceKeyword | word<"structure"> |
+  word<"theorem">
+}
+instanceKeyword { word<"instance"> }
+DefinitionName { Identifier }
+
+// `deriving instance BEq for Point` derives for an existing type and names
+// nothing, so its `instance` must not start a declaration.
+derivingClause {
+  derivingKeyword (!derivingInstance derivingInstanceKeyword)?
+}
+derivingKeyword[@name=Keyword] { word<"deriving"> }
+derivingInstanceKeyword[@name=Keyword] { instanceKeyword }
+
+// `attribute [simp] foo`, whose bracket is an attribute list like the one
+// in `@[simp]` rather than a list literal.
+attributeCommand { attributeKeyword (!attributeList attributeList)? }
+attributeKeyword[@name=Keyword] { word<"attribute"> }
+attributeList[@name=Attribute] { "[" item* "]" }
+
+// `@[simp]`, `@[inline, reducible]`. What is inside is parsed like any
+// other bracket, but styled as one unit (see index.ts).
+Attribute { "@[" item* "]" }
+
+// Declaration modifiers, the ones the Lean 4 VS Code extension's grammar
+// marks as `storage.modifier`.
+Modifier {
+  word<"local"> | word<"meta"> | word<"noncomputable"> | word<"nonrec"> |
+  word<"partial"> | word<"private"> | word<"protected"> | word<"public"> |
+  word<"scoped"> | word<"unsafe">
+}
+
+// What marks code as unfinished. The Lean 4 VS Code extension flags the same
+// three (`invalid.illegal` in its grammar), and `sorry` is the placeholder
+// that Exercism's stubs ask the student to replace.
+Incomplete {
+  word<"sorry"> | word<"admit"> | @specialize<HashCommand, "#exit">
+}
+
 // Commands, from src/Lean/Parser/Command.lean and Module.lean.
+// The declaration keywords (`def`, `theorem`, …), `deriving`, `attribute`
+// and the modifiers have rules of their own above.
 commandKeyword {
-  word<"abbrev"> | word<"attribute"> | word<"axiom"> | word<"builtin_initialize"> |
-  word<"class"> | word<"declare_syntax_cat"> | word<"def"> | word<"deriving"> |
+  word<"add_decl_doc"> | word<"binder_predicate"> |
+  word<"builtin_dsimproc"> | word<"builtin_dsimproc_decl"> |
+  word<"builtin_grind_propagator"> | word<"builtin_initialize"> |
+  word<"builtin_simproc"> | word<"builtin_simproc_decl"> |
+  word<"coinductive_fixpoint"> | word<"declare_config_elab"> |
+  word<"declare_syntax_cat"> | word<"dsimproc"> | word<"dsimproc_decl"> |
   word<"elab"> | word<"elab_rules"> | word<"end"> | word<"example"> |
-  word<"export"> | word<"extends"> | word<"import"> | word<"include"> |
-  word<"inductive"> | word<"infix"> | word<"infixl"> | word<"infixr"> |
-  word<"initialize"> | word<"instance"> | word<"local"> | word<"macro"> |
-  word<"macro_rules"> | word<"mutual"> | word<"namespace"> |
-  word<"noncomputable"> | word<"nonrec"> | word<"notation"> | word<"omit"> |
-  word<"opaque"> | word<"open"> | word<"partial"> | word<"postfix"> |
-  word<"prefix"> | word<"prelude"> | word<"private"> | word<"protected"> |
-  word<"public"> | word<"run_cmd"> | word<"scoped"> | word<"section"> |
-  word<"set_option"> | word<"structure"> | word<"syntax"> | word<"theorem"> |
-  word<"universe"> | word<"unsafe"> | word<"variable">
+  word<"export"> | word<"extends"> | word<"grind_pattern"> |
+  word<"grind_propagator"> | word<"hiding"> | word<"import"> |
+  word<"include"> | word<"inductive_fixpoint"> | word<"infix"> |
+  word<"infixl"> | word<"infixr"> | word<"initialize"> | word<"macro"> |
+  word<"macro_rules"> | word<"module"> | word<"mutual"> |
+  word<"namespace"> | word<"notation"> | word<"omit"> | word<"opaque"> |
+  word<"open"> | word<"postfix"> | word<"prefix"> | word<"prelude"> |
+  word<"recommended_spelling"> | word<"register_builtin_option"> |
+  word<"register_error_explanation"> | word<"register_label_attr"> |
+  word<"register_linter_set"> | word<"register_option"> |
+  word<"register_parser_alias"> | word<"register_simp_attr"> |
+  word<"register_tactic_tag"> | word<"renaming"> | word<"reprove"> |
+  word<"run_cmd"> | word<"run_elab"> | word<"run_meta"> | word<"seal"> |
+  word<"section"> | word<"set_option"> | word<"show_panel_widgets"> |
+  word<"simproc"> | word<"simproc_decl"> | word<"syntax"> |
+  word<"tactic_alt"> | word<"tactic_extension"> | word<"tactic_tag"> |
+  word<"universe"> | word<"unseal"> | word<"variable">
 }
 
 // Term and binder syntax, from src/Lean/Parser/Term.lean.
 termKeyword {
-  word<"at"> | word<"by"> | word<"calc"> | word<"decreasing_by"> |
-  word<"else"> | word<"exists"> | word<"forall"> | word<"from"> |
-  word<"fun"> | word<"generalizing"> | word<"have"> | word<"if"> |
-  word<"in"> | word<"let"> | word<"match"> | word<"nofun"> |
-  word<"nomatch"> | word<"partial_fixpoint"> | word<"rec"> | word<"show"> |
-  word<"sorry"> | word<"suffices"> | word<"termination_by"> | word<"then"> |
-  word<"this"> | word<"using"> | word<"where"> | word<"with">
+  word<"at"> | word<"bif"> | word<"by"> | word<"by?"> | word<"calc"> |
+  word<"decreasing_by"> | word<"else"> | word<"exists"> | word<"forall"> |
+  word<"from"> | word<"fun"> | word<"generalizing"> | word<"have"> |
+  word<"haveI"> | word<"if"> | word<"in"> | word<"include_str"> |
+  word<"leading_parser"> | word<"let"> | word<"letI"> | word<"let_expr"> |
+  word<"match"> | word<"match_expr"> | word<"matches"> | word<"max_prec"> |
+  word<"mod_cast"> | word<"nat_lit"> | word<"no_index"> | word<"nofun"> |
+  word<"nomatch"> | word<"panic!"> | word<"partial_fixpoint"> |
+  word<"println!"> | word<"rec"> | word<"reportIssue!"> | word<"show"> |
+  word<"show_term"> | word<"suffices"> | word<"termination_by"> |
+  word<"termination_by?"> | word<"then"> | word<"this"> |
+  word<"trailing_parser"> | word<"unreachable!"> | word<"using"> |
+  word<"where"> | word<"with">
 }
 
 // do-notation, from src/Lean/Parser/Do.lean. `assert!` and `dbg_trace` are the
@@ -104,47 +333,85 @@ termKeyword {
 doKeyword {
   word<"assert!"> | word<"break"> | word<"catch"> | word<"continue"> |
   word<"dbg_trace"> | word<"do"> | word<"finally"> | word<"for"> |
-  word<"mut"> | word<"repeat"> | word<"return"> | word<"try"> |
-  word<"unless"> | word<"until"> | word<"while">
+  word<"logNamedError"> | word<"logNamedErrorAt"> |
+  word<"logNamedWarning"> | word<"logNamedWarningAt"> | word<"mut"> |
+  word<"repeat"> | word<"return"> | word<"throwError"> |
+  word<"throwErrorAt"> | word<"throwNamedError"> |
+  word<"throwNamedErrorAt"> | word<"try"> | word<"unless"> |
+  word<"until"> | word<"while">
 }
 
 // Core tactics. Lean has no closed tactic list either, so this covers the ones
 // in Init/Tactics.lean and Lean/Elab/Tactic that a reader would recognise.
+// Mathlib's tactics (`by_contra`, `trans`, `use`) are left out, like its
+// `lemma`: on Exercism they are not available, and to Lean they are names.
+//
+// Also left out, on purpose, are the tactics whose names are everyday words:
+// `case`, `cases`, `change`, `clear`, `delta`, `done`, `ext`, `fail`,
+// `first`, `focus`, `iterate`, `left`, `next`, `replace`, `right`, `skip`
+// and `split`. To Lean a tactic's name is a keyword only where a tactic can
+// start, and anywhere else an ordinary name, which a grammar of tokens
+// cannot tell apart. Code on Exercism uses these words as names far more
+// often than as tactics (`(left right : Tree α)`, `next : Option Nat`,
+// `| first : Week`, `.fail`), so they stay plain everywhere.
 tacticKeyword {
   word<"ac_rfl"> | word<"all_goals"> | word<"any_goals"> | word<"apply"> |
   word<"apply?"> | word<"assumption"> | word<"assumption_mod_cast"> |
-  word<"by_cases"> | word<"by_contra"> | word<"case"> | word<"cases"> |
-  word<"change"> | word<"clear"> | word<"congr"> | word<"constructor"> |
-  word<"contradiction"> | word<"conv"> | word<"decide"> | word<"delta"> |
-  word<"done"> | word<"dsimp"> | word<"exact"> | word<"exact?"> |
-  word<"exact_mod_cast"> | word<"exfalso"> | word<"ext"> | word<"fail"> |
-  word<"first"> | word<"focus"> | word<"funext"> | word<"generalize"> |
-  word<"grind"> | word<"guard_expr"> | word<"guard_hyp"> |
-  word<"guard_target"> | word<"induction"> | word<"infer_instance"> |
-  word<"injection"> | word<"injections"> | word<"intro"> | word<"intros"> |
-  word<"iterate"> | word<"left"> | word<"native_decide"> | word<"next"> |
-  word<"norm_cast"> | word<"obtain"> | word<"omega"> | word<"push_cast"> |
-  word<"rcases"> | word<"refine"> | word<"rename_i"> | word<"replace"> |
-  word<"revert"> | word<"rfl"> | word<"right"> | word<"rintro"> |
+  word<"by_cases"> | word<"congr"> | word<"constructor"> |
+  word<"contradiction"> | word<"conv"> | word<"decide"> | word<"dsimp"> |
+  word<"exact"> | word<"exact?"> | word<"exact_mod_cast"> | word<"exfalso"> |
+  word<"funext"> | word<"generalize"> | word<"grind"> | word<"guard_expr"> |
+  word<"guard_hyp"> | word<"guard_target"> | word<"induction"> |
+  word<"infer_instance"> | word<"injection"> | word<"injections"> |
+  word<"intro"> | word<"intros"> | word<"native_decide"> |
+  word<"norm_cast"> | word<"norm_cast_add_elim"> | word<"obtain"> |
+  word<"omega"> | word<"push_cast"> | word<"rcases"> | word<"refine"> |
+  word<"rename_i"> | word<"revert"> | word<"rfl"> | word<"rintro"> |
   word<"rotate_left"> | word<"rotate_right"> | word<"rw"> | word<"rwa"> |
   word<"simp"> | word<"simp_all"> | word<"simp_arith"> | word<"simpa"> |
-  word<"skip"> | word<"specialize"> | word<"split"> | word<"subst"> |
-  word<"subst_vars"> | word<"symm"> | word<"trans"> | word<"trivial"> |
-  word<"unfold"> | word<"use">
+  word<"specialize"> | word<"subst"> | word<"subst_vars"> | word<"symm"> |
+  word<"trivial"> | word<"unfold">
 }
 
 Keyword { commandKeyword | termKeyword | doKeyword | tacticKeyword }
 
 Sort { word<"Type"> | word<"Prop"> | word<"Sort"> }
 
+// Core inductives, structures and type classes from `src/Init/Prelude.lean`,
+// `src/Init/Core.lean` and `src/Init/Data/{Ord,Repr,ToString,Hashable}.lean` —
+// curated to the ones a reader would actually see spelled out in source
+// (`[DecidableEq α]`, `deriving Repr`, `: Ordering`), not every internal
+// typeclass (the heterogeneous `H*` operator classes are left out as rarely
+// written literally, `HAppend` being the exception) — plus the types of
+// `Std.Time`, `Lean`'s macro types and `Ref`/`Mutex`, which the Exercism
+// track's exercises use.
 TypeName {
-  word<"Array"> | word<"Bool"> | word<"Char"> | word<"Empty"> |
-  word<"Except"> | word<"Fin"> | word<"Float"> | word<"Float32"> |
-  word<"IO"> | word<"Int"> | word<"Int8"> | word<"Int16"> | word<"Int32"> |
-  word<"Int64"> | word<"List"> | word<"Nat"> | word<"Option"> |
-  word<"Prod"> | word<"String"> | word<"Subtype"> | word<"Sum"> |
-  word<"Thunk"> | word<"UInt8"> | word<"UInt16"> | word<"UInt32"> |
-  word<"UInt64"> | word<"USize"> | word<"Unit">
+  word<"Add"> | word<"And"> | word<"Array"> | word<"BEq"> | word<"BitVec"> |
+  word<"Bool"> | word<"ByteArray"> | word<"Char"> | word<"Decidable"> |
+  word<"DecidableEq"> | word<"DecidableRel"> | word<"DHashMap"> |
+  word<"Div"> | word<"DTreeMap"> | word<"Empty"> | word<"Eq"> |
+  word<"Except"> | word<"ExceptT"> | word<"Expr"> | word<"ExtDHashMap"> |
+  word<"ExtHashMap"> | word<"ExtHashSet"> | word<"False"> | word<"Fin"> |
+  word<"Float"> | word<"Float32"> | word<"FloatArray"> | word<"Format"> |
+  word<"GE"> | word<"GT"> | word<"HAppend"> | word<"HEq"> | word<"HashMap"> |
+  word<"HashSet"> | word<"Hashable"> | word<"IO"> | word<"Id"> | word<"Iff"> |
+  word<"Inhabited"> | word<"Int"> | word<"Int8"> | word<"Int16"> |
+  word<"Int32"> | word<"Int64"> | word<"LE"> | word<"LT"> |
+  word<"LawfulBEq"> | word<"List"> | word<"MacroM"> | word<"MProd"> |
+  word<"Mod"> | word<"Mul"> | word<"Mutex"> | word<"Nat"> | word<"Ne"> |
+  word<"Neg"> | word<"Nonempty"> | word<"Not"> | word<"Option"> |
+  word<"OptionT"> | word<"Or"> | word<"Ord"> | word<"Ordering"> |
+  word<"PEmpty"> | word<"PlainDate"> | word<"PlainDateTime"> |
+  word<"PlainTime"> | word<"PLift"> | word<"PProd"> | word<"PSigma"> |
+  word<"PSum"> | word<"PUnit"> | word<"Pow"> | word<"Prod"> | word<"Quot"> |
+  word<"Quotient"> | word<"Range"> | word<"ReaderM"> | word<"ReaderT"> |
+  word<"Ref"> | word<"Repr"> | word<"Sigma"> | word<"ST"> | word<"StateM"> |
+  word<"StateT"> | word<"String"> | word<"Sub"> | word<"Subarray"> |
+  word<"Subtype"> | word<"Sum"> | word<"Syntax"> | word<"Task"> |
+  word<"Thunk"> | word<"ToString"> | word<"TreeMap"> | word<"TreeSet"> |
+  word<"True"> | word<"TSyntax"> | word<"UInt8"> | word<"UInt16"> |
+  word<"UInt32"> | word<"UInt64"> | word<"ULift"> | word<"USize"> |
+  word<"Unit"> | word<"Vector">
 }
 
 BooleanLiteral { word<"true"> | word<"false"> }
@@ -156,6 +423,7 @@ BooleanLiteral { word<"true"> | word<"false"> }
   // `@detectDelim` only pairs up the ASCII brackets, so ⟨ ⟩ needs the
   // matching props spelled out or bracket matching skips it.
   "(" ")" "[" "]" "{" "}"
+  "@["[closedBy="]"]
   "⟨"[closedBy="⟩"]
   "⟩"[openedBy="⟨"]
 
@@ -191,8 +459,10 @@ BooleanLiteral { word<"true"> | word<"false"> }
   NameLiteral { "`" "`"? idPart ("." idPart)* }
   HashCommand { "#" idFirst idRest* }
 
-  // Lean permits a raw newline inside a string, as well as `\` line gaps.
-  String { '"' (!["\\] | "\\" _)* '"' }
+  // Lean permits a raw newline inside a string, as well as `\` line gaps; see
+  // the `String` rule below for the body, which is defined separately so
+  // that `\`-escapes can be styled as a distinct `Escape` node.
+  stringStart { '"' }
   // Raw strings are `r##..."..."##...` and the hash counts have to balance,
   // which is not a regular language. The two widths that occur in practice are
   // spelled out; wider ones fall back to an identifier followed by a string.
@@ -205,11 +475,22 @@ BooleanLiteral { word<"true"> | word<"false"> }
   // Exactly one character or one escape, as in `charLitFnAux` — not a run. A
   // greedy version swallows whole lines when a stray `'` appears, which it does
   // in Lean's proof-carrying indexing (`xs[i]'h`).
+  //
+  // `Char` and `CharEscape` stay flat tokens rather than becoming a rule with
+  // a nested `Escape` node the way `String` did above: unlike a string, this
+  // literal has no delimiter other than `'` itself at both ends, so a parser
+  // rule that shifts the opening quote can't back out if what follows isn't
+  // well-formed — confirmed by trying it, `xs[i]'h` stopped falling back to
+  // `Operator` and produced an error node instead. Splitting into two
+  // disjoint whole-literal tokens keeps the single-shot match that makes the
+  // fallback work, at the cost of tagging the whole literal rather than just
+  // the backslash sequence.
   escape {
     "\\" ($[\\\"'rnt] | "x" hexDigit hexDigit |
           "u" hexDigit hexDigit hexDigit hexDigit)
   }
-  Char { "'" (!['\\\n] | escape) "'" }
+  Char { "'" !['\\\n] "'" }
+  CharEscape { "'" escape "'" }
 
   decDigits { @digit (@digit | "_")* }
   hexDigit { @digit | $[a-fA-F] }
@@ -228,10 +509,11 @@ BooleanLiteral { word<"true"> | word<"false"> }
   SymbolKeyword { "λ" | "∀" | "∃" | "Π" | "Σ" }
 
   // Lean's operators are user-defined, so this is a character class rather than
-  // a list. Runs make `:=`, `<;>` and `<|>` single tokens for free; `,` and `;`
-  // stay separate so that `[1,-2]` does not merge into one operator.
+  // a list. Runs make `:=`, `<|>` and `|>.` single tokens for free; `,` and `;`
+  // stay separate so that `[1,-2]` does not merge into one operator (which
+  // leaves `<;>` as three).
   opChar {
-    $[!#$%&*+\-/:<=>?@\\^`|~.'] |
+    $[!#$%&*+\-/:<=>?@\\^`|~.] |
     $[\u{a1}-\u{aa}] | $[\u{ac}-\u{ba}] | $[\u{bc}-\u{bf}] |           // latin-1 symbols, without « »
     $[\u{d7}] | $[\u{f7}] |                                           // × ÷
     // Subscripts are included so that Lean's subscripted operators (`⊢ₛ`,
@@ -245,7 +527,11 @@ BooleanLiteral { word<"true"> | word<"false"> }
     $[\u{2900}-\u{2aff}] |                                            // supplemental arrows and operators
     $[\u{2b00}-\u{2bff}]
   }
-  Operator { opChar+ | "," | ";" }
+  // `'` is an operator of its own (`xs[i]'h`) and never part of a run, so
+  // that a character literal can follow an operator without a space
+  // (`c=='a'`): as part of `=='` it would leave `a'` behind, and with `'"'`
+  // an unterminated string.
+  Operator { opChar+ | "'" | "," | ";" }
 
   // Anything the tokens above do not cover, so that a stray or half-typed
   // character never aborts the parse.
@@ -257,11 +543,12 @@ BooleanLiteral { word<"true"> | word<"false"> }
   @precedence {
     LineComment,
     docCommentStart, moduleDocStart, blockCommentStart,
-    RawString, String, Char,
+    RawString, stringStart, Char, CharEscape,
     Scientific, Number,
     HashCommand, NameLiteral, Identifier,
     SymbolKeyword,
     whitespace,
+    "@[",
     Operator,
     "(", ")", "[", "]", "{", "}", "⟨", "⟩",
     Unknown

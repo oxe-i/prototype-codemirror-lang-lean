@@ -18,7 +18,7 @@ Program(Char, Char, Char)
 
 ==>
 
-Program(Char, Char, Char, Char, Char)
+Program(CharEscape, CharEscape, CharEscape, CharEscape, Char)
 
 # A character literal holds one character, so a stray quote is an operator
 
@@ -27,3 +27,17 @@ xs[i]'h
 ==>
 
 Program(Identifier, Brackets(Identifier), Operator, Identifier)
+
+# A character literal may follow an operator without a space
+
+xs.filter (·!='"') |> f (c=='a') (d≠'\n')
+
+==>
+
+Program(
+  Identifier,
+  Parens(Operator, Char),
+  Operator,
+  Identifier,
+  Parens(Identifier, Operator, Char),
+  Parens(Identifier, Operator, CharEscape))

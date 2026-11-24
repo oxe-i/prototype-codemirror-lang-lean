@@ -22,12 +22,104 @@ Program(
   TypeName, TypeName, TypeName, TypeName, TypeName, TypeName
 )
 
-# Other capitalised names are ordinary identifiers
+# Core type classes and propositions
+
+Decidable DecidableEq Inhabited Nonempty
+Repr ToString Hashable BEq Ord Ordering
+Add Sub Mul Div Mod Neg LE LT GE GT
+Eq Ne HEq And Or Not Iff
+
+==>
+
+Program(
+  TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName
+)
+
+# Monad transformers and other core structures
+
+Id StateM StateT ReaderM ReaderT ExceptT OptionT Task
+PUnit PEmpty PProd MProd Sigma PSigma PSum
+HashMap HashSet Subarray ByteArray FloatArray BitVec
+
+==>
+
+Program(
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName
+)
+
+# Other capitalised names are ordinary identifiers, whether dotted or not
 
 RotationalCipher
 Complex.add
-Nat.succ
+Complex.re
 
 ==>
 
 Program(Identifier, Identifier, Identifier)
+
+# A curated type name qualifier: the dot+name is its own node, the method after stays plain
+
+Nat.succ
+IO.println
+List.map Nat.succ
+
+==>
+
+Program(
+  QualifiedType, Identifier, QualifiedType, Identifier,
+  QualifiedType, Identifier, QualifiedType, Identifier
+)
+
+# Nothing is required to follow the dot — QualifiedType stands on its own
+
+Nat.
+IO. foo
+
+==>
+
+Program(QualifiedType, QualifiedType, Identifier)
+
+# QualifiedType only carves off the curated-name-plus-dot prefix, not further dots
+
+Nat.Something.Else
+
+==>
+
+Program(QualifiedType, Identifier)
+
+# A "." right after a closing bracket is always a plain projection
+
+(x).toList
+[1, 2].map
+
+==>
+
+Program(
+  Parens(Identifier), Operator, Identifier,
+  Brackets(Number, Operator, Number), Operator, Identifier
+)
+
+# Types the Exercism track's exercises use
+
+DecidableRel HAppend TSyntax MacroM Mutex
+PlainDate PlainTime PlainDateTime
+IO.Ref Nat
+ST.Ref σ Nat
+Std.Mutex Nat
+PlainDate.mk
+
+==>
+
+Program(
+  TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName,
+  QualifiedType, TypeName, TypeName,
+  QualifiedType, TypeName, Identifier, TypeName,
+  StdQualifiedType(StdNamespace, StdTypeName), TypeName,
+  QualifiedType, Identifier
+)
