@@ -22,6 +22,36 @@ Program(
   TypeName, TypeName, TypeName, TypeName, TypeName, TypeName
 )
 
+# Core type classes and propositions
+
+Decidable DecidableEq Inhabited Nonempty
+Repr ToString Hashable BEq Ord Ordering
+Add Sub Mul Div Mod Neg LE LT GE GT
+Eq Ne HEq And Or Not Iff
+
+==>
+
+Program(
+  TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName
+)
+
+# Monad transformers and other core structures
+
+Id StateM StateT ReaderM ReaderT ExceptT OptionT Task
+PUnit PEmpty PProd MProd Sigma PSigma PSum
+HashMap HashSet Subarray ByteArray FloatArray BitVec
+
+==>
+
+Program(
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName, TypeName,
+  TypeName, TypeName, TypeName, TypeName, TypeName, TypeName
+)
+
 # Other capitalised names are ordinary identifiers
 
 RotationalCipher

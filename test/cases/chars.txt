@@ -18,7 +18,7 @@ Program(Char, Char, Char)
 
 ==>
 
-Program(Char, Char, Char, Char, Char)
+Program(CharEscape, CharEscape, CharEscape, CharEscape, Char)
 
 # A character literal holds one character, so a stray quote is an operator
 

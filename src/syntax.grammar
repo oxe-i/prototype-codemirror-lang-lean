@@ -51,6 +51,20 @@ comment { BlockComment | DocComment | ModuleDoc }
   NestedComment { nestedStart commentBody }
 }
 
+// Likewise for strings, so that `\n`-style escapes can be styled apart from
+// the surrounding text. `@else stringContent` gives total local coverage —
+// same as `commentContent` above — so there is no position inside a string
+// the local tokenizer cannot advance past.
+@local tokens {
+  stringEnd { '"' }
+  Escape { "\\" _ }
+  @else stringContent
+}
+
+@skip {} {
+  String { stringStart (stringContent | Escape)* stringEnd }
+}
+
 atom {
   Keyword |
   SymbolKeyword |
@@ -63,6 +77,7 @@ atom {
   String |
   RawString |
   Char |
+  CharEscape |
   Scientific |
   Number |
   Operator |
@@ -137,14 +152,32 @@ Keyword { commandKeyword | termKeyword | doKeyword | tacticKeyword }
 
 Sort { word<"Type"> | word<"Prop"> | word<"Sort"> }
 
+// Core inductives, structures and type classes from `src/Init/Prelude.lean`,
+// `src/Init/Core.lean` and `src/Init/Data/{Ord,Repr,ToString,Hashable}.lean` —
+// curated to the ones a reader would actually see spelled out in source
+// (`[DecidableEq α]`, `deriving Repr`, `: Ordering`), not every internal
+// typeclass (the heterogeneous `H*` operator classes are left out as rarely
+// written literally).
 TypeName {
-  word<"Array"> | word<"Bool"> | word<"Char"> | word<"Empty"> |
-  word<"Except"> | word<"Fin"> | word<"Float"> | word<"Float32"> |
-  word<"IO"> | word<"Int"> | word<"Int8"> | word<"Int16"> | word<"Int32"> |
-  word<"Int64"> | word<"List"> | word<"Nat"> | word<"Option"> |
-  word<"Prod"> | word<"String"> | word<"Subtype"> | word<"Sum"> |
-  word<"Thunk"> | word<"UInt8"> | word<"UInt16"> | word<"UInt32"> |
-  word<"UInt64"> | word<"USize"> | word<"Unit">
+  word<"Add"> | word<"And"> | word<"Array"> | word<"BEq"> | word<"BitVec"> |
+  word<"Bool"> | word<"ByteArray"> | word<"Char"> | word<"Decidable"> |
+  word<"DecidableEq"> | word<"Div"> | word<"Empty"> | word<"Eq"> |
+  word<"Except"> | word<"ExceptT"> | word<"Fin"> | word<"Float"> |
+  word<"Float32"> | word<"FloatArray"> | word<"GE"> | word<"GT"> |
+  word<"HEq"> | word<"HashMap"> | word<"HashSet"> | word<"Hashable"> |
+  word<"IO"> | word<"Id"> | word<"Iff"> | word<"Inhabited"> |
+  word<"Int"> | word<"Int8"> | word<"Int16"> | word<"Int32"> |
+  word<"Int64"> | word<"LE"> | word<"LT"> | word<"LawfulBEq"> |
+  word<"List"> | word<"MProd"> | word<"Mod"> | word<"Mul"> | word<"Nat"> |
+  word<"Ne"> | word<"Neg"> | word<"Nonempty"> | word<"Not"> |
+  word<"Option"> | word<"OptionT"> | word<"Or"> | word<"Ord"> |
+  word<"Ordering"> | word<"PEmpty"> | word<"PProd"> | word<"PSigma"> |
+  word<"PSum"> | word<"PUnit"> | word<"Pow"> | word<"Prod"> |
+  word<"ReaderM"> | word<"ReaderT"> | word<"Repr"> | word<"Sigma"> |
+  word<"StateM"> | word<"StateT"> | word<"String"> | word<"Sub"> |
+  word<"Subarray"> | word<"Subtype"> | word<"Sum"> | word<"Task"> |
+  word<"Thunk"> | word<"ToString"> | word<"UInt8"> | word<"UInt16"> |
+  word<"UInt32"> | word<"UInt64"> | word<"USize"> | word<"Unit">
 }
 
 BooleanLiteral { word<"true"> | word<"false"> }
@@ -191,8 +224,10 @@ BooleanLiteral { word<"true"> | word<"false"> }
   NameLiteral { "`" "`"? idPart ("." idPart)* }
   HashCommand { "#" idFirst idRest* }
 
-  // Lean permits a raw newline inside a string, as well as `\` line gaps.
-  String { '"' (!["\\] | "\\" _)* '"' }
+  // Lean permits a raw newline inside a string, as well as `\` line gaps; see
+  // the `String` rule below for the body, which is defined separately so
+  // that `\`-escapes can be styled as a distinct `Escape` node.
+  stringStart { '"' }
   // Raw strings are `r##..."..."##...` and the hash counts have to balance,
   // which is not a regular language. The two widths that occur in practice are
   // spelled out; wider ones fall back to an identifier followed by a string.
@@ -205,11 +240,22 @@ BooleanLiteral { word<"true"> | word<"false"> }
   // Exactly one character or one escape, as in `charLitFnAux` — not a run. A
   // greedy version swallows whole lines when a stray `'` appears, which it does
   // in Lean's proof-carrying indexing (`xs[i]'h`).
+  //
+  // `Char` and `CharEscape` stay flat tokens rather than becoming a rule with
+  // a nested `Escape` node the way `String` did above: unlike a string, this
+  // literal has no delimiter other than `'` itself at both ends, so a parser
+  // rule that shifts the opening quote can't back out if what follows isn't
+  // well-formed — confirmed by trying it, `xs[i]'h` stopped falling back to
+  // `Operator` and produced an error node instead. Splitting into two
+  // disjoint whole-literal tokens keeps the single-shot match that makes the
+  // fallback work, at the cost of tagging the whole literal rather than just
+  // the backslash sequence.
   escape {
     "\\" ($[\\\"'rnt] | "x" hexDigit hexDigit |
           "u" hexDigit hexDigit hexDigit hexDigit)
   }
-  Char { "'" (!['\\\n] | escape) "'" }
+  Char { "'" !['\\\n] "'" }
+  CharEscape { "'" escape "'" }
 
   decDigits { @digit (@digit | "_")* }
   hexDigit { @digit | $[a-fA-F] }
@@ -257,7 +303,7 @@ BooleanLiteral { word<"true"> | word<"false"> }
   @precedence {
     LineComment,
     docCommentStart, moduleDocStart, blockCommentStart,
-    RawString, String, Char,
+    RawString, stringStart, Char, CharEscape,
     Scientific, Number,
     HashCommand, NameLiteral, Identifier,
     SymbolKeyword,

@@ -22,6 +22,7 @@ export const leanLanguage = LRLanguage.define({
         NameLiteral: t.atom,
         "String RawString": t.string,
         Char: t.character,
+        "Escape CharEscape": t.escape,
         Number: t.number,
         Scientific: t.float,
         LineComment: t.lineComment,
