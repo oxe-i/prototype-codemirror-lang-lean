@@ -381,7 +381,7 @@ BooleanLiteral { word<"true"> | word<"false"> }
   // a list. Runs make `:=`, `<;>` and `<|>` single tokens for free; `,` and `;`
   // stay separate so that `[1,-2]` does not merge into one operator.
   opChar {
-    $[!#$%&*+\-/:<=>?@\\^`|~.'] |
+    $[!#$%&*+\-/:<=>?@\\^`|~.] |
     $[\u{a1}-\u{aa}] | $[\u{ac}-\u{ba}] | $[\u{bc}-\u{bf}] |           // latin-1 symbols, without « »
     $[\u{d7}] | $[\u{f7}] |                                           // × ÷
     // Subscripts are included so that Lean's subscripted operators (`⊢ₛ`,
@@ -395,7 +395,11 @@ BooleanLiteral { word<"true"> | word<"false"> }
     $[\u{2900}-\u{2aff}] |                                            // supplemental arrows and operators
     $[\u{2b00}-\u{2bff}]
   }
-  Operator { opChar+ | "," | ";" }
+  // `'` is an operator of its own (`xs[i]'h`) and never part of a run, so
+  // that a character literal can follow an operator without a space
+  // (`c=='a'`): as part of `=='` it would leave `a'` behind, and with `'"'`
+  // an unterminated string.
+  Operator { opChar+ | "'" | "," | ";" }
 
   // Anything the tokens above do not cover, so that a stray or half-typed
   // character never aborts the parse.
