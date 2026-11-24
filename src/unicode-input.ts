@@ -90,17 +90,19 @@ const stringLiteralNodes = new Set([
 
 // Whether `pos` is inside the quotes of a string or character literal.
 function insideStringLiteral(state: EditorState, pos: number): boolean {
-  const inner = syntaxTree(state).resolveInner(pos, -1);
+  const tree = syntaxTree(state);
   // A character literal that is still being typed is not a literal to the
-  // parser yet: all there is before the cursor is a lone `'` operator.
+  // parser yet: all there is before the cursor is a lone `'` operator, or
+  // that and the backslash of an escape (the second leader of `'\\'`).
   // (`x'` is an identifier, so a leader after it still starts an
   // abbreviation.)
-  if (
-    inner.name === "Operator" &&
-    inner.to === pos &&
-    state.sliceDoc(pos - 1, pos) === "'"
-  )
-    return true;
+  const before = state.sliceDoc(Math.max(0, pos - 2), pos);
+  const quote = before.endsWith("'") ? pos - 1 : before === "'\\" ? pos - 2 : -1;
+  if (quote >= 0) {
+    const node = tree.resolveInner(quote + 1, -1);
+    if (node.name === "Operator" && node.from === quote) return true;
+  }
+  const inner = tree.resolveInner(pos, -1);
   for (let node: SyntaxNode | null = inner; node; node = node.parent) {
     // Strictly inside the node, or at the end of one that isn't closed yet
     // (a string without its closing quote runs to the end of the document).

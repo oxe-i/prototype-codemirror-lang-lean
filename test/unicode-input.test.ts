@@ -336,6 +336,12 @@ describe("string and character literals", () => {
   test("and in a character literal", async () => {
     expect(await typed("def c := '\\t'")).toBe("def c := '\\t'");
     expect(await typed("def c := '\\x41'")).toBe("def c := '\\x41'");
+    // The escaped backslash: its second leader comes after `'\\`.
+    expect(await typed("def c := '\\\\'")).toBe("def c := '\\\\'");
+    expect(await typed("| '\\\\' :: '\\\\' :: xs => (c=='\\\\') ")).toBe(
+      "| '\\\\' :: '\\\\' :: xs => (c=='\\\\') "
+    );
+    expect(await typed('"a\\\\b" ')).toBe('"a\\\\b" ');
     // A prime at the end of a name is not a character literal.
     expect(await typed("x'\\to ")).toBe("x'→ ");
   });
