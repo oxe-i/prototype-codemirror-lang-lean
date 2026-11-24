@@ -8,6 +8,7 @@ import {
   indentNodeProp,
 } from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
+import { leanUnicodeInput } from "./unicode-input";
 
 export const leanLanguage = LRLanguage.define({
   name: "lean",
@@ -57,5 +58,5 @@ export const leanLanguage = LRLanguage.define({
 });
 
 export function lean() {
-  return new LanguageSupport(leanLanguage);
+  return new LanguageSupport(leanLanguage, [leanUnicodeInput()]);
 }
