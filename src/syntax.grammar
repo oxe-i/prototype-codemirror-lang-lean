@@ -64,8 +64,8 @@ comment { BlockComment | DocComment | ModuleDoc }
 @skip {} {
   String { stringStart (stringContent | Escape)* stringEnd }
   // `s!`/`f!` string interpolation. The prefix and opening quote are baked
-  // into one token (InterpPrefix), same fix as QualifiedType/TypeDecl
-  // above: `s!` alone (no immediately-following quote, e.g. used as an
+  // into one token (InterpPrefix), same fix as QualifiedType above: `s!`
+  // alone (no immediately-following quote, e.g. used as an
   // ordinary `!`-suffixed identifier, or with a space before the string)
   // simply doesn't match this token at all, so it falls back to plain
   // Identifier with no dead end. Reuses String's own local tokens
@@ -95,8 +95,6 @@ atom {
   Sort |
   TypeName |
   QualifiedType |
-  TypeDecl |
-  NamespaceDecl |
   BooleanLiteral |
   NameLiteral |
   Identifier |
@@ -211,20 +209,6 @@ BooleanLiteral { word<"true"> | word<"false"> }
 
 @tokens {
   whitespace { @whitespace+ }
-
-  // Declaration sites for `structure`/`inductive`/`class` and `namespace`.
-  // `TypeDecl { typeDeclKeyword Identifier }` as a grammar rule hits the
-  // same shift/reduce conflict `StringInterp` did — atom can reduce
-  // `typeDeclKeyword` on its own before seeing whether an Identifier
-  // follows. Baking keyword + whitespace + name into one token (same fix
-  // as `interpStringStart`) sidesteps it: the choice happens inside this
-  // token's own regex, so `structure` alone (nothing valid follows yet)
-  // still falls back to plain `typeDeclKeyword`/`Keyword` rather than a
-  // dead end. Trade-off: the whole "structure Foo" span gets one tag, not
-  // "structure" keyword-colored and "Foo" separately — same ceiling as
-  // QualifiedType above, for the same reason.
-  TypeDecl { ("class" | "inductive" | "structure") @whitespace+ idPart }
-  NamespaceDecl { "namespace" @whitespace+ idPart }
 
   // Declared here so that they become named nodes and can be styled.
   // `@detectDelim` only pairs up the ASCII brackets, so ⟨ ⟩ needs the
@@ -376,7 +360,7 @@ BooleanLiteral { word<"true"> | word<"false"> }
     docCommentStart, moduleDocStart, blockCommentStart,
     RawString, InterpPrefix, stringStart, Char, CharEscape,
     Scientific, Number,
-    HashCommand, NameLiteral, qualifiedTypeStart, TypeDecl, NamespaceDecl, Identifier,
+    HashCommand, NameLiteral, qualifiedTypeStart, Identifier,
     SymbolKeyword,
     whitespace,
     Operator,

@@ -22,7 +22,7 @@ structure Complex where
 ==>
 
 Program(
-  TypeDecl, Keyword,
+  Keyword, Identifier, Keyword,
   Identifier, Operator, TypeName,
   Identifier, Operator, TypeName,
   Keyword, TypeName
