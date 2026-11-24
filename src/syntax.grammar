@@ -203,33 +203,45 @@ atom {
   Scientific |
   Number |
   Operator |
+  nameDot |
   Unknown
 }
 
 word<term> { @specialize<Identifier, term> }
 
-@precedence { qualifiedName, definitionName, derivingInstance, attributeList }
+@precedence { qualifiedDot, qualifiedName, definitionName, derivingInstance, attributeList }
 
 // The commands that introduce a name, and the name they introduce: the
 // Lean 4 VS Code extension's grammar marks it as `entity.name.function`
-// after exactly these keywords. Only an identifier directly after the
+// after these keywords. (It lists `lemma` too. That one is Mathlib's, not a
+// keyword of Lean itself, where `lemma` is an ordinary name, so it is left
+// out.) Only an identifier directly after the
 // keyword counts, so `instance : ToString Point` has no name, and a
 // curated type name is left as it is: in `def Nat.double` the `Nat.` keeps
 // its own colour and `double` is the name. The precedence settles the choice
 // between "this identifier is the name" and "the command has no name" in
 // favour of the name; `qualifiedName` ranks above `definitionName` so that
 // the same holds after the `Nat.`, where the rule that could end instead
-// already carries the lower one.
+// already carries the lower one, and `qualifiedDot` above that for the name
+// after `Std.HashMap.`.
 declaration {
   declarationKeyword |
   declarationKeyword !definitionName DefinitionName |
   declarationKeyword !definitionName QualifiedType |
-  declarationKeyword !definitionName QualifiedType !qualifiedName DefinitionName
+  declarationKeyword !definitionName QualifiedType !qualifiedName DefinitionName |
+  declarationKeyword !definitionName StdQualifiedType |
+  declarationKeyword !definitionName StdQualifiedType !qualifiedName nameDot |
+  declarationKeyword !definitionName StdQualifiedType !qualifiedName nameDot
+    !qualifiedDot DefinitionName
 }
+// The dot of `def Std.HashMap.toSortedList`, between the type and the name.
+// Specializing swaps the token wherever a lone "." stands, so `atom` takes
+// it too, under its old name.
+nameDot[@name=Operator] { @specialize<Operator, "."> }
 declarationKeyword[@name=Keyword] {
   word<"abbrev"> | word<"axiom"> | word<"class"> | word<"coinductive"> |
-  word<"def"> | word<"inductive"> | instanceKeyword | word<"lemma"> |
-  word<"structure"> | word<"theorem">
+  word<"def"> | word<"inductive"> | instanceKeyword | word<"structure"> |
+  word<"theorem">
 }
 instanceKeyword { word<"instance"> }
 DefinitionName { Identifier }

@@ -105,6 +105,25 @@ Program(
   Keyword, QualifiedType
 )
 
+# A declaration named inside a Std type's namespace
+
+def Std.HashMap.toSortedList (m : Std.HashMap Nat Nat) := m.toList
+def Std.HashMap.
+def Std.HashMap
+theorem Std.Time.PlainDate.foo : True := trivial
+
+==>
+
+Program(
+  Keyword, StdQualifiedType(StdNamespace, StdTypeName), Operator, DefinitionName(Identifier),
+  Parens(Identifier, Operator, StdQualifiedType(StdNamespace, StdTypeName), TypeName, TypeName),
+  Operator, Identifier,
+  Keyword, StdQualifiedType(StdNamespace, StdTypeName), Operator,
+  Keyword, StdQualifiedType(StdNamespace, StdTypeName),
+  Keyword, StdQualifiedType(StdNamespace, StdTypeName), Operator, DefinitionName(Identifier),
+  Operator, TypeName, Operator, Keyword
+)
+
 # A declaration keyword with no name after it
 
 def
@@ -119,6 +138,18 @@ Program(
   Keyword, Parens(Identifier),
   Keyword, TypeName, Keyword,
   Keyword, Operator, TypeName, Operator, Keyword
+)
+
+# lemma is Mathlib's, not a keyword of Lean itself
+
+lemma foo : True := trivial
+have lemma : True := trivial
+
+==>
+
+Program(
+  Identifier, Identifier, Operator, TypeName, Operator, Keyword,
+  Keyword, Identifier, Operator, TypeName, Operator, Keyword
 )
 
 # deriving instance names nothing
