@@ -10,7 +10,14 @@ import type { SyntaxNode } from "@lezer/common";
 // moment it's typed, mirroring Lean's own "expand as soon as it's
 // unambiguous" behaviour, without needing to track partial ambiguity
 // across a large table.
+// Some otherwise-natural entries are left out because they'd break
+// prefix-freeness against one already here: `\infty` (⇒ conflicts with
+// `\in`) and `\notin` (⇒ conflicts with `\not`) both start with a shorter
+// existing key. Adding either back would require tracking ambiguity across
+// entries (as Lean's own input method does), which this table deliberately
+// avoids — see the module comment above.
 export const abbreviations: Readonly<Record<string, string>> = {
+  // Logic and relations
   "\\and": "∧",
   "\\or": "∨",
   "\\not": "¬",
@@ -18,21 +25,51 @@ export const abbreviations: Readonly<Record<string, string>> = {
   "\\iff": "↔",
   "\\forall": "∀",
   "\\exists": "∃",
-  "\\in": "∈",
-  "\\subseteq": "⊆",
-  "\\cup": "∪",
-  "\\cap": "∩",
-  "\\empty": "∅",
-  "\\lambda": "λ",
-  "\\times": "×",
+  "\\vdash": "⊢",
+  "\\mapsto": "↦",
   "\\le": "≤",
   "\\ge": "≥",
   "\\ne": "≠",
+  "\\mid": "∣",
+
+  // Sets
+  "\\in": "∈",
+  "\\subseteq": "⊆",
+  "\\supseteq": "⊇",
+  "\\cup": "∪",
+  "\\cap": "∩",
+  "\\bigcup": "⋃",
+  "\\bigcap": "⋂",
+  "\\empty": "∅",
+
+  // Operators and misc
+  "\\lambda": "λ",
+  "\\times": "×",
   "\\circ": "∘",
-  "\\sum": "Σ",
+  "\\cdot": "⋅",
+  "\\partial": "∂",
+  "\\nabla": "∇",
+
+  // Greek letters
   "\\alpha": "α",
   "\\beta": "β",
+  "\\gamma": "γ",
+  "\\delta": "δ",
+  "\\epsilon": "ε",
+  "\\theta": "θ",
+  "\\mu": "μ",
+  "\\pi": "π",
+  "\\sigma": "σ",
+  "\\phi": "φ",
+  "\\omega": "ω",
+  "\\sum": "Σ",
+
+  // Number systems
   "\\nat": "ℕ",
+  "\\R": "ℝ",
+  "\\Z": "ℤ",
+  "\\Q": "ℚ",
+  "\\C": "ℂ",
 };
 
 const trigger = /\\[A-Za-z]+$/;

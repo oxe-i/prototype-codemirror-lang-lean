@@ -43,4 +43,19 @@ describe("matchAbbreviation", () => {
     expect(matchAbbreviation("hello")).toBeNull();
     expect(matchAbbreviation("")).toBeNull();
   });
+
+  test("matches a single-letter number-system shortcut", () => {
+    expect(matchAbbreviation("f : \\R")).toEqual({ matchLength: 2, symbol: "ℝ" });
+  });
+
+  test("matches a greek letter", () => {
+    expect(matchAbbreviation("\\pi")).toEqual({ matchLength: 3, symbol: "π" });
+  });
+
+  test("does not expand \\in as a prefix of the intentionally-omitted \\infty", () => {
+    // \infty isn't in the table (it would conflict with \in), so typing
+    // toward it should expand at \in and leave the rest as plain text.
+    expect(matchAbbreviation("\\in")).toEqual({ matchLength: 3, symbol: "∈" });
+    expect(matchAbbreviation("\\inf")).toBeNull();
+  });
 });
