@@ -89,6 +89,7 @@ const stringLiteralNodes = new Set([
   "String",
   "RawString",
   "StringInterp",
+  "InterpolatedString",
   "Char",
   "CharEscape",
 ]);

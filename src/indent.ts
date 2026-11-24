@@ -1,8 +1,8 @@
 import { TreeIndentContext, syntaxTree } from "@codemirror/language";
 
 // The tokens that open a bracket pair. `InterpBraceStart` is the `{` of an
-// interpolation in `s!"…"`.
-const opening = new Set(["(", "[", "{", "⟨", "InterpBraceStart"]);
+// interpolation in `s!"…"`, and `@[` opens an attribute list.
+const opening = new Set(["(", "[", "@[", "{", "⟨", "InterpBraceStart"]);
 
 // A line that starts with a focus dot, as in the Lean 4 VS Code extension's
 // only `onEnterRules` entry.

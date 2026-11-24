@@ -1,7 +1,10 @@
 import { buildParser } from "@lezer/generator";
 import * as fs from "fs";
 import * as path from "path";
-import { makeInterpPrefixTokenizer } from "../src/interp-prefix";
+import {
+  makeInterpKeywordTokenizer,
+  makeInterpPrefixTokenizer,
+} from "../src/interp-prefix";
 import {
   makeStdNamespaceTokenizer,
   makeStdTypeNameTokenizer,
@@ -17,6 +20,8 @@ export const parser = buildParser(
     externalTokenizer(name, terms) {
       if (name === "interpPrefixToken")
         return makeInterpPrefixTokenizer(terms.InterpPrefix);
+      if (name === "interpKeywordToken")
+        return makeInterpKeywordTokenizer(terms.InterpKeyword);
       if (name === "stdNamespaceToken")
         return makeStdNamespaceTokenizer(terms.StdNamespace);
       if (name === "stdTypeNameToken")

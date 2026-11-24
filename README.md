@@ -20,10 +20,20 @@ tagged as invalid rather than as keywords, so that code left unfinished stands
 out. And `'`, `!` and `?` count as parts of a word, so that a double click or a
 word motion takes `x'`, `get!` and `find?` whole.
 
+The highlighting covers what that extension's grammar marks without a Lean
+server: the name a declaration introduces (`def add`, `structure Point`),
+attributes (`@[simp]`, `attribute [simp]`), modifiers (`private`, `partial`),
+and the strings of `m!`, `panic!`, `throwError`, `dbg_trace` and
+`reportIssue!`, whose `{…}` hold code like those of `s!`. What it adds on top
+is a curated list of core type names (`Nat`, `Std.HashMap`,
+`Std.Time.PlainDateTime`), which VS Code leaves plain. What needs the Lean
+server (local variables, fields, tactics defined by the user) is out of reach.
+
 The lexical rules follow the Lean 4 sources: `src/Init/Meta/Defs.lean` for what
 may appear in an identifier, and `src/Lean/Parser/Basic.lean` for comments,
 strings, characters and numbers. The keyword list is drawn from
-`src/Lean/Parser/{Command,Term,Do}.lean` plus the core tactics; being a curated
+`src/Lean/Parser/{Command,Term,Do}.lean` plus the core tactics, and has every
+keyword the VS Code extension's grammar has; being a curated
 list rather than a closed one, it is the part most likely to need extending.
 
 ⚠️ To ensure that the package can be integrated on the Exercism website, don't change the packages' versions:

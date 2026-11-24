@@ -110,7 +110,22 @@ comment { BlockComment | DocComment | ModuleDoc }
     (interpStringContent | InterpEscape | InterpBraces)*
     interpStringEnd
   }
+  // The string of `panic! "…{x}…"` and the like, see keywordInterp below.
+  InterpolatedString {
+    stringStart
+    (interpStringContent | InterpEscape | InterpBraces)*
+    interpStringEnd
+  }
 }
+
+// `panic! "no item at {i}"`, `throwError "…"`, `dbg_trace "…"` and
+// `reportIssue! "…"` take an interpolated string without an `s!` in front,
+// and the Lean 4 VS Code extension's grammar treats their strings that way.
+// InterpKeyword is an external token (see interp-prefix.ts) that is only
+// offered when a quote follows on the same line, so the string this rule
+// requires is always there. Declared out here, like InterpBraces, so that
+// the space between the keyword and the string is skipped as usual.
+keywordInterp { InterpKeyword InterpolatedString }
 
 // Declared outside the `@skip {} { ... }` block above (unlike
 // StringInterp itself): item* needs the ordinary whitespace/comment skip
@@ -120,6 +135,7 @@ comment { BlockComment | DocComment | ModuleDoc }
 InterpBraces { InterpBraceStart item* "}" }
 
 @external tokens interpPrefixToken from "./tokens" { InterpPrefix }
+@external tokens interpKeywordToken from "./tokens" { InterpKeyword }
 @external tokens stdNamespaceToken from "./std-tokens" { StdNamespace }
 @external tokens stdTypeNameToken from "./std-tokens" { StdTypeName }
 @external tokens qualifiedTypeToken from "./qualified-type-tokens" { QualifiedType }
@@ -163,6 +179,12 @@ StdQualifiedType { StdNamespace StdTypeName }
 
 atom {
   Keyword |
+  declaration |
+  derivingClause |
+  attributeCommand |
+  Attribute |
+  Modifier |
+  keywordInterp |
   Incomplete |
   SymbolKeyword |
   HashCommand |
@@ -186,6 +208,58 @@ atom {
 
 word<term> { @specialize<Identifier, term> }
 
+@precedence { qualifiedName, definitionName, derivingInstance, attributeList }
+
+// The commands that introduce a name, and the name they introduce: the
+// Lean 4 VS Code extension's grammar marks it as `entity.name.function`
+// after exactly these keywords. Only an identifier directly after the
+// keyword counts, so `instance : ToString Point` has no name, and a
+// curated type name is left as it is: in `def Nat.double` the `Nat.` keeps
+// its own colour and `double` is the name. The precedence settles the choice
+// between "this identifier is the name" and "the command has no name" in
+// favour of the name; `qualifiedName` ranks above `definitionName` so that
+// the same holds after the `Nat.`, where the rule that could end instead
+// already carries the lower one.
+declaration {
+  declarationKeyword |
+  declarationKeyword !definitionName DefinitionName |
+  declarationKeyword !definitionName QualifiedType |
+  declarationKeyword !definitionName QualifiedType !qualifiedName DefinitionName
+}
+declarationKeyword[@name=Keyword] {
+  word<"abbrev"> | word<"axiom"> | word<"class"> | word<"coinductive"> |
+  word<"def"> | word<"inductive"> | instanceKeyword | word<"lemma"> |
+  word<"structure"> | word<"theorem">
+}
+instanceKeyword { word<"instance"> }
+DefinitionName { Identifier }
+
+// `deriving instance BEq for Point` derives for an existing type and names
+// nothing, so its `instance` must not start a declaration.
+derivingClause {
+  derivingKeyword (!derivingInstance derivingInstanceKeyword)?
+}
+derivingKeyword[@name=Keyword] { word<"deriving"> }
+derivingInstanceKeyword[@name=Keyword] { instanceKeyword }
+
+// `attribute [simp] foo`, whose bracket is an attribute list like the one
+// in `@[simp]` rather than a list literal.
+attributeCommand { attributeKeyword (!attributeList attributeList)? }
+attributeKeyword[@name=Keyword] { word<"attribute"> }
+attributeList[@name=Attribute] { "[" item* "]" }
+
+// `@[simp]`, `@[inline, reducible]`. What is inside is parsed like any
+// other bracket, but styled as one unit (see index.ts).
+Attribute { "@[" item* "]" }
+
+// Declaration modifiers, the ones the Lean 4 VS Code extension's grammar
+// marks as `storage.modifier`.
+Modifier {
+  word<"local"> | word<"meta"> | word<"noncomputable"> | word<"nonrec"> |
+  word<"partial"> | word<"private"> | word<"protected"> | word<"public"> |
+  word<"scoped"> | word<"unsafe">
+}
+
 // What marks code as unfinished. The Lean 4 VS Code extension flags the same
 // three (`invalid.illegal` in its grammar), and `sorry` is the placeholder
 // that Exercism's stubs ask the student to replace.
@@ -194,31 +268,50 @@ Incomplete {
 }
 
 // Commands, from src/Lean/Parser/Command.lean and Module.lean.
+// The declaration keywords (`def`, `theorem`, …), `deriving`, `attribute`
+// and the modifiers have rules of their own above.
 commandKeyword {
-  word<"abbrev"> | word<"attribute"> | word<"axiom"> | word<"builtin_initialize"> |
-  word<"class"> | word<"declare_syntax_cat"> | word<"def"> | word<"deriving"> |
+  word<"add_decl_doc"> | word<"binder_predicate"> |
+  word<"builtin_dsimproc"> | word<"builtin_dsimproc_decl"> |
+  word<"builtin_grind_propagator"> | word<"builtin_initialize"> |
+  word<"builtin_simproc"> | word<"builtin_simproc_decl"> |
+  word<"coinductive_fixpoint"> | word<"declare_config_elab"> |
+  word<"declare_syntax_cat"> | word<"dsimproc"> | word<"dsimproc_decl"> |
   word<"elab"> | word<"elab_rules"> | word<"end"> | word<"example"> |
-  word<"export"> | word<"extends"> | word<"import"> | word<"include"> |
-  word<"inductive"> | word<"infix"> | word<"infixl"> | word<"infixr"> |
-  word<"initialize"> | word<"instance"> | word<"local"> | word<"macro"> |
-  word<"macro_rules"> | word<"mutual"> | word<"namespace"> |
-  word<"noncomputable"> | word<"nonrec"> | word<"notation"> | word<"omit"> |
-  word<"opaque"> | word<"open"> | word<"partial"> | word<"postfix"> |
-  word<"prefix"> | word<"prelude"> | word<"private"> | word<"protected"> |
-  word<"public"> | word<"run_cmd"> | word<"scoped"> | word<"section"> |
-  word<"set_option"> | word<"structure"> | word<"syntax"> | word<"theorem"> |
-  word<"universe"> | word<"unsafe"> | word<"variable">
+  word<"export"> | word<"extends"> | word<"grind_pattern"> |
+  word<"grind_propagator"> | word<"hiding"> | word<"import"> |
+  word<"include"> | word<"inductive_fixpoint"> | word<"infix"> |
+  word<"infixl"> | word<"infixr"> | word<"initialize"> | word<"macro"> |
+  word<"macro_rules"> | word<"module"> | word<"mutual"> |
+  word<"namespace"> | word<"notation"> | word<"omit"> | word<"opaque"> |
+  word<"open"> | word<"postfix"> | word<"prefix"> | word<"prelude"> |
+  word<"recommended_spelling"> | word<"register_builtin_option"> |
+  word<"register_error_explanation"> | word<"register_label_attr"> |
+  word<"register_linter_set"> | word<"register_option"> |
+  word<"register_parser_alias"> | word<"register_simp_attr"> |
+  word<"register_tactic_tag"> | word<"renaming"> | word<"reprove"> |
+  word<"run_cmd"> | word<"run_elab"> | word<"run_meta"> | word<"seal"> |
+  word<"section"> | word<"set_option"> | word<"show_panel_widgets"> |
+  word<"simproc"> | word<"simproc_decl"> | word<"syntax"> |
+  word<"tactic_alt"> | word<"tactic_extension"> | word<"tactic_tag"> |
+  word<"universe"> | word<"unseal"> | word<"variable">
 }
 
 // Term and binder syntax, from src/Lean/Parser/Term.lean.
 termKeyword {
-  word<"at"> | word<"by"> | word<"calc"> | word<"decreasing_by"> |
-  word<"else"> | word<"exists"> | word<"forall"> | word<"from"> |
-  word<"fun"> | word<"generalizing"> | word<"have"> | word<"if"> |
-  word<"in"> | word<"let"> | word<"match"> | word<"nofun"> |
-  word<"nomatch"> | word<"partial_fixpoint"> | word<"rec"> | word<"show"> |
-  word<"suffices"> | word<"termination_by"> | word<"then"> |
-  word<"this"> | word<"using"> | word<"where"> | word<"with">
+  word<"at"> | word<"bif"> | word<"by"> | word<"by?"> | word<"calc"> |
+  word<"decreasing_by"> | word<"else"> | word<"exists"> | word<"forall"> |
+  word<"from"> | word<"fun"> | word<"generalizing"> | word<"have"> |
+  word<"haveI"> | word<"if"> | word<"in"> | word<"include_str"> |
+  word<"leading_parser"> | word<"let"> | word<"letI"> | word<"let_expr"> |
+  word<"match"> | word<"match_expr"> | word<"matches"> | word<"max_prec"> |
+  word<"mod_cast"> | word<"nat_lit"> | word<"no_index"> | word<"nofun"> |
+  word<"nomatch"> | word<"panic!"> | word<"partial_fixpoint"> |
+  word<"println!"> | word<"rec"> | word<"reportIssue!"> | word<"show"> |
+  word<"show_term"> | word<"suffices"> | word<"termination_by"> |
+  word<"termination_by?"> | word<"then"> | word<"this"> |
+  word<"trailing_parser"> | word<"unreachable!"> | word<"using"> |
+  word<"where"> | word<"with">
 }
 
 // do-notation, from src/Lean/Parser/Do.lean. `assert!` and `dbg_trace` are the
@@ -226,8 +319,12 @@ termKeyword {
 doKeyword {
   word<"assert!"> | word<"break"> | word<"catch"> | word<"continue"> |
   word<"dbg_trace"> | word<"do"> | word<"finally"> | word<"for"> |
-  word<"mut"> | word<"repeat"> | word<"return"> | word<"try"> |
-  word<"unless"> | word<"until"> | word<"while">
+  word<"logNamedError"> | word<"logNamedErrorAt"> |
+  word<"logNamedWarning"> | word<"logNamedWarningAt"> | word<"mut"> |
+  word<"repeat"> | word<"return"> | word<"throwError"> |
+  word<"throwErrorAt"> | word<"throwNamedError"> |
+  word<"throwNamedErrorAt"> | word<"try"> | word<"unless"> |
+  word<"until"> | word<"while">
 }
 
 // Core tactics. Lean has no closed tactic list either, so this covers the ones
@@ -245,7 +342,7 @@ tacticKeyword {
   word<"guard_target"> | word<"induction"> | word<"infer_instance"> |
   word<"injection"> | word<"injections"> | word<"intro"> | word<"intros"> |
   word<"iterate"> | word<"left"> | word<"native_decide"> | word<"next"> |
-  word<"norm_cast"> | word<"obtain"> | word<"omega"> | word<"push_cast"> |
+  word<"norm_cast"> | word<"norm_cast_add_elim"> | word<"obtain"> | word<"omega"> | word<"push_cast"> |
   word<"rcases"> | word<"refine"> | word<"rename_i"> | word<"replace"> |
   word<"revert"> | word<"rfl"> | word<"right"> | word<"rintro"> |
   word<"rotate_left"> | word<"rotate_right"> | word<"rw"> | word<"rwa"> |
@@ -301,6 +398,7 @@ BooleanLiteral { word<"true"> | word<"false"> }
   // `@detectDelim` only pairs up the ASCII brackets, so ⟨ ⟩ needs the
   // matching props spelled out or bracket matching skips it.
   "(" ")" "[" "]" "{" "}"
+  "@["[closedBy="]"]
   "⟨"[closedBy="⟩"]
   "⟩"[openedBy="⟨"]
 
@@ -424,6 +522,7 @@ BooleanLiteral { word<"true"> | word<"false"> }
     HashCommand, NameLiteral, Identifier,
     SymbolKeyword,
     whitespace,
+    "@[",
     Operator,
     "(", ")", "[", "]", "{", "}", "⟨", "⟩",
     Unknown

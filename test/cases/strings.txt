@@ -39,7 +39,7 @@ def f! : Nat := 1
 Program(
   Identifier, String,
   Identifier,
-  Keyword, Identifier, Operator, TypeName, Operator, Number
+  Keyword, DefinitionName(Identifier), Operator, TypeName, Operator, Number
 )
 
 # Raw strings
@@ -58,3 +58,44 @@ Program(RawString, RawString)
 ==>
 
 Program(String)
+
+# m! interpolation
+
+m!"a {b} c"
+
+==>
+
+Program(StringInterp(InterpPrefix, InterpBraces(InterpBraceStart, Identifier, "}")))
+
+# Keywords that take an interpolated string
+
+panic! "bad {x + 1} value"
+throwError "no {y}"
+dbg_trace "plain"
+reportIssue!	"tab {z}"
+
+==>
+
+Program(
+  InterpKeyword, InterpolatedString(InterpBraces(InterpBraceStart, Identifier, Operator, Number, "}")),
+  InterpKeyword, InterpolatedString(InterpBraces(InterpBraceStart, Identifier, "}")),
+  InterpKeyword, InterpolatedString,
+  InterpKeyword, InterpolatedString(InterpBraces(InterpBraceStart, Identifier, "}"))
+)
+
+# The same keywords without a string on the line are plain keywords
+
+panic! msg
+panic!
+throwError
+  "next line {x}"
+panic!x
+
+==>
+
+Program(
+  Keyword, Identifier,
+  Keyword,
+  Keyword, String,
+  Identifier
+)

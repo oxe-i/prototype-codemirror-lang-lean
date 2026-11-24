@@ -22,7 +22,7 @@ Program(Anonymous(Number, Operator, Number))
 ==>
 
 Program(
-  Operator, Brackets(Keyword),
+  Attribute(Keyword),
   Operator, Brackets(Number, Operator, Number)
 )
 

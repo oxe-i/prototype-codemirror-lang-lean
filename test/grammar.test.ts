@@ -281,6 +281,7 @@ describe("InterpBraces", () => {
     expect(nodeNames("def f : Nat := { x := 1 }.x")).toEqual([
       "Program",
       "Keyword",
+      "DefinitionName",
       "Identifier",
       "Operator",
       "TypeName",

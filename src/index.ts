@@ -26,7 +26,18 @@ export const leanLanguage = LRLanguage.define({
   parser: parser.configure({
     props: [
       styleTags({
-        "Keyword SymbolKeyword": t.keyword,
+        // Modifiers (`private`, `partial`, …) are a node of their own but
+        // share the keyword tag: that is how VS Code's stock themes show
+        // them, and `t.modifier` would give them the colour of a type name
+        // in Exercism's dark theme (One Dark), where types should stand out.
+        "Keyword SymbolKeyword InterpKeyword Modifier": t.keyword,
+        // The name a declaration introduces, as in `def add`. Not every
+        // such name is a function (`structure Point`), but the Lean 4 VS
+        // Code extension's grammar calls them all `entity.name.function`.
+        "DefinitionName/Identifier": t.function(t.definition(t.variableName)),
+        // `@[simp]` and the list of `attribute [simp]`, as one unit: the
+        // `!` keeps what is inside from being styled on its own.
+        "Attribute!": t.meta,
         Incomplete: t.invalid,
         HashCommand: t.meta,
         "Sort TypeName StdTypeName": t.typeName,
@@ -34,7 +45,7 @@ export const leanLanguage = LRLanguage.define({
         BooleanLiteral: t.bool,
         Identifier: t.variableName,
         NameLiteral: t.atom,
-        "String RawString StringInterp": t.string,
+        "String RawString StringInterp InterpolatedString": t.string,
         "InterpPrefix InterpBraceStart": t.meta,
         Char: t.character,
         "Escape CharEscape InterpEscape": t.escape,

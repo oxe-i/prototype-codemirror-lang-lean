@@ -6,7 +6,7 @@ def rotate (shiftKey : UInt32) (text : String) : String :=
 ==>
 
 Program(
-  Keyword, Identifier,
+  Keyword, DefinitionName(Identifier),
   Parens(Identifier, Operator, TypeName),
   Parens(Identifier, Operator, TypeName),
   Operator, TypeName, Operator, Incomplete
@@ -22,7 +22,7 @@ structure Complex where
 ==>
 
 Program(
-  Keyword, Identifier, Keyword,
+  Keyword, DefinitionName(Identifier), Keyword,
   Identifier, Operator, TypeName,
   Identifier, Operator, TypeName,
   Keyword, TypeName
@@ -35,7 +35,7 @@ theorem two_pos : 0 < 2 := by decide
 ==>
 
 Program(
-  Keyword, Identifier, Operator, Number, Operator, Number,
+  Keyword, DefinitionName(Identifier), Operator, Number, Operator, Number,
   Operator, Keyword, Keyword
 )
 
@@ -46,7 +46,7 @@ def f (α : Type) (xs : List α) : Nat := xs.length
 ==>
 
 Program(
-  Keyword, Identifier,
+  Keyword, DefinitionName(Identifier),
   Parens(Identifier, Operator, Sort),
   Parens(Identifier, Operator, TypeName, Identifier),
   Operator, TypeName, Operator, Identifier
@@ -63,10 +63,112 @@ def main : IO Unit := do
 ==>
 
 Program(
-  Keyword, Identifier, Operator, TypeName, TypeName, Operator, Keyword,
+  Keyword, DefinitionName(Identifier), Operator, TypeName, TypeName, Operator, Keyword,
   Keyword, Keyword, Identifier, Operator, Number,
   Keyword, Identifier, Keyword, Brackets(Number, Operator, Number), Keyword,
   Identifier, Operator, Identifier, Operator, Identifier,
   QualifiedType, Identifier,
   StringInterp(InterpPrefix, InterpBraces(InterpBraceStart, Identifier, "}"))
+)
+
+# The name a declaration introduces
+
+instance : ToString Point where
+instance instFoo : Foo := x
+inductive Color
+  | red
+class inductive Shape
+abbrev M := StateM Nat
+
+==>
+
+Program(
+  Keyword, Operator, TypeName, Identifier, Keyword,
+  Keyword, DefinitionName(Identifier), Operator, Identifier, Operator, Identifier,
+  Keyword, DefinitionName(Identifier), Operator, Identifier,
+  Keyword, Keyword, DefinitionName(Identifier),
+  Keyword, DefinitionName(Identifier), Operator, TypeName, TypeName
+)
+
+# A declaration named inside a built-in type's namespace
+
+def Nat.double (n : Nat) := 2 * n
+theorem List.foo.bar : True := trivial
+def Nat.
+
+==>
+
+Program(
+  Keyword, QualifiedType, DefinitionName(Identifier),
+  Parens(Identifier, Operator, TypeName), Operator, Number, Operator, Identifier,
+  Keyword, QualifiedType, DefinitionName(Identifier), Operator, TypeName, Operator, Keyword,
+  Keyword, QualifiedType
+)
+
+# A declaration keyword with no name after it
+
+def
+def (x)
+structure Nat where
+example : True := trivial
+
+==>
+
+Program(
+  Keyword,
+  Keyword, Parens(Identifier),
+  Keyword, TypeName, Keyword,
+  Keyword, Operator, TypeName, Operator, Keyword
+)
+
+# deriving instance names nothing
+
+deriving instance BEq for Tree
+structure P where
+  x : Nat
+  deriving Repr, BEq
+
+==>
+
+Program(
+  Keyword, Keyword, TypeName, Keyword, Identifier,
+  Keyword, DefinitionName(Identifier), Keyword,
+  Identifier, Operator, TypeName,
+  Keyword, TypeName, Operator, TypeName
+)
+
+# Modifiers
+
+private partial def go : Nat := 1
+protected noncomputable unsafe def x := 2
+local notation "x" => 1
+scoped instance : Foo := y
+
+==>
+
+Program(
+  Modifier, Modifier, Keyword, DefinitionName(Identifier), Operator, TypeName, Operator, Number,
+  Modifier, Modifier, Modifier, Keyword, DefinitionName(Identifier), Operator, Number,
+  Modifier, Keyword, String, Operator, Number,
+  Modifier, Keyword, Operator, Identifier, Operator, Identifier
+)
+
+# Attributes
+
+@[simp] theorem foo : True := trivial
+@[inline, reducible] def f := 1
+@[extern "c_add"] def add' := 2
+attribute [local simp] foo in
+attribute x
+@foo
+
+==>
+
+Program(
+  Attribute(Keyword), Keyword, DefinitionName(Identifier), Operator, TypeName, Operator, Keyword,
+  Attribute(Identifier, Operator, Identifier), Keyword, DefinitionName(Identifier), Operator, Number,
+  Attribute(Identifier, String), Keyword, DefinitionName(Identifier), Operator, Number,
+  Keyword, Attribute(Modifier, Keyword), Identifier, Keyword,
+  Keyword, Identifier,
+  Operator, Identifier
 )
