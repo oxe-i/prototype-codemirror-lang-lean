@@ -155,7 +155,7 @@ directories you give it and reports both error nodes and `Unknown` tokens (a
 character the tokenizer has no rule for):
 
 ```shell
-node tools/parse-corpus.mjs ../lean/exercises
+bun tools/parse-corpus.mjs ../lean/exercises
 ```
 
 Point it at a checkout of the [Lean track][track], or at Lean's own `src/Init`

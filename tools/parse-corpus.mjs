@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 // Development helper: parse a tree of .lean files with the grammar in
 // src/syntax.grammar and report every error node the parser produces.
@@ -9,21 +9,18 @@
 // rule for, which an error count alone would not reveal. Point it at a checkout
 // of the Exercism Lean track, or at Lean's own src/Init and src/Std.
 //
-//   node tools/parse-corpus.mjs <dir-or-file>...
+//   bun tools/parse-corpus.mjs <dir-or-file>...
 
-import { buildParser } from "@lezer/generator";
 import * as fs from "fs";
 import * as path from "path";
+// The grammar's external tokenizers are TypeScript, hence bun.
+import { parser } from "../test/parser.ts";
 
 const roots = process.argv.slice(2);
 if (roots.length === 0) {
-  console.error("usage: node tools/parse-corpus.mjs <dir-or-file>...");
+  console.error("usage: bun tools/parse-corpus.mjs <dir-or-file>...");
   process.exit(2);
 }
-
-const parser = buildParser(
-  fs.readFileSync(path.join("src", "syntax.grammar"), "utf8")
-);
 
 function* leanFiles(target) {
   const stat = fs.statSync(target);
